@@ -95,7 +95,8 @@ def _attributes(lock: dict[str, Any], role: str | None = None, lock_type: str = 
     p = _permissions(lock)
     return {
         "lock_id": _id(lock), "role": role, "lock_type": lock_type, "status": lock.get("status"), "type": lock.get("type"),
-        "remaining_seconds": _remaining(lock), "permissions": p,
+        "remaining_seconds": _remaining(lock),
+        "remaining": _format_duration(_remaining(lock)), "permissions": p,
         "can_add_time": p.get("add_time", p.get("addTime")), "can_remove_time": p.get("remove_time", p.get("removeTime")),
         "can_freeze": p.get("freeze", p.get("freeze_timer")), "can_unfreeze": p.get("unfreeze", p.get("unfreeze_timer")),
         "can_change_minimum_date": p.get("change_minimum_date"), "can_change_maximum_date": p.get("change_maximum_date"),
