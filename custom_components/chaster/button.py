@@ -22,15 +22,22 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 role,
             )
         )
-        actions = (
-            ("history", "Refresh history", "mdi:history"),
-            ("freeze", "Freeze", "mdi:snowflake"),
-            ("unfreeze", "Unfreeze", "mdi:snowflake-off"),
-            ("unlock", "Unlock", "mdi:lock-open"),
-            ("archive", "Archive", "mdi:archive"),
-        )
         if role == "wearer":
-            actions = actions[:4] + (( "emergency_unlock", "Emergency unlock", "mdi:alert-octagon"),) + actions[4:]
+            # Freeze/unfreeze are not exposed on the "My lock" device.
+            actions = (
+                ("history", "Refresh history", "mdi:history"),
+                ("unlock", "Unlock", "mdi:lock-open"),
+                ("emergency_unlock", "Emergency unlock", "mdi:alert-octagon"),
+                ("archive", "Archive", "mdi:archive"),
+            )
+        else:
+            actions = (
+                ("history", "Refresh history", "mdi:history"),
+                ("freeze", "Freeze", "mdi:snowflake"),
+                ("unfreeze", "Unfreeze", "mdi:snowflake-off"),
+                ("unlock", "Unlock", "mdi:lock-open"),
+                ("archive", "Archive", "mdi:archive"),
+            )
         for action, suffix, icon in actions:
             entities.append(ChasterActionButton(coordinator, action, f"{label} - {suffix}", icon, role))
     async_add_entities(entities)
