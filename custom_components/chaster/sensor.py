@@ -70,6 +70,26 @@ def _remaining(item: Any) -> int | None:
     return _date_seconds(item.get("endDate"))
 
 
+def _format_duration(seconds: Any) -> str | None:
+    """Format seconds as days, hours, minutes and seconds."""
+    value = _number(seconds)
+    if value is None:
+        return None
+    value = max(0, value)
+    days, value = divmod(value, 86400)
+    hours, value = divmod(value, 3600)
+    minutes, seconds = divmod(value, 60)
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours or days:
+        parts.append(f"{hours}h")
+    if minutes or hours or days:
+        parts.append(f"{minutes}m")
+    parts.append(f"{seconds}s")
+    return " ".join(parts)
+
+
 def _permissions(item: Any) -> dict[str, Any]:
     if not isinstance(item, dict):
         return {}
@@ -288,9 +308,6 @@ class ChasterKeyholderUsernameSensor(ChasterEntity, SensorEntity):
 
 class ChasterTimeLockedSensor(ChasterEntity, SensorEntity):
     _attr_icon = "mdi:timer-lock"
-    _attr_native_unit_of_measurement = "s"
-    _attr_device_class = "duration"
-    _attr_state_class = "total_increasing"
     _attr_entity_registry_enabled_default = True
 
     def __init__(self, coordinator, role):
@@ -318,9 +335,6 @@ class ChasterTimeLockedSensor(ChasterEntity, SensorEntity):
 
 class ChasterTimeRemainingSensor(ChasterEntity, SensorEntity):
     _attr_icon = "mdi:timer-sand"
-    _attr_native_unit_of_measurement = "s"
-    _attr_device_class = "duration"
-    _attr_state_class = "measurement"
     _attr_entity_registry_enabled_default = True
 
     def __init__(self, coordinator, role):
@@ -332,7 +346,7 @@ class ChasterTimeRemainingSensor(ChasterEntity, SensorEntity):
     @property
     def native_value(self):
         lock = _active_lock(self.coordinator, self.role)
-        return _remaining(lock) if lock else None
+        return _format_duration(_remaining(lock)) if lock else None
 
 
 class ChasterLockTitleSensor(ChasterEntity, SensorEntity):
@@ -383,9 +397,6 @@ class ChasterHistorySensor(ChasterEntity, SensorEntity):
 
 class ChasterLockSensor(ChasterEntity, SensorEntity):
     _attr_icon = "mdi:lock-clock"
-    _attr_native_unit_of_measurement = "s"
-    _attr_device_class = "duration"
-    _attr_state_class = "measurement"
 
     def __init__(self, coordinator, initial, role, source_role=None):
         super().__init__(coordinator, role)
@@ -415,7 +426,7 @@ class ChasterLockSensor(ChasterEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return _remaining(self._lock) if self._lock else None
+        return _format_duration(_remaining(self._lock)) if self._lock else None
 
     @property
     def extra_state_attributes(self):
