@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers import entity_registry as er
 
 from .coordinator import ChasterCoordinator
 from .entity import ChasterEntity
@@ -152,7 +153,8 @@ def _active_lock(coordinator: ChasterCoordinator, role: str) -> dict[str, Any]:
             nested = item.get("lock") if isinstance(item.get("lock"), dict) else None
             locks.append({**item, **nested} if nested else item)
     active = [
-        x for x in locks
+        x
+        for x in locks
         if isinstance(x, dict)
         and _id(x)
         and coordinator.is_active(x)
@@ -162,6 +164,14 @@ def _active_lock(coordinator: ChasterCoordinator, role: str) -> dict[str, Any]:
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator: ChasterCoordinator = hass.data[entry.domain][entry.entry_id]
+
+    # Remove stale dynamic Keyholder lock sensors created by older versions.
+    registry = er.async_get(hass)
+    stale_prefix = f"{entry.entry_id}_lock_keyholder_"
+    for entity in list(registry.entities.values()):
+        if entity.config_entry_id == entry.entry_id and entity.unique_id.startswith(stale_prefix):
+            registry.async_remove(entity.entity_id)
+
     entities = [
         # Chaster - My lock
         ChasterUsernameSensor(coordinator, "wearer"),
@@ -189,8 +199,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         wearer_locks = coordinator._dict_list(data.get("locks"))
         shared_locks = coordinator._dict_list(data.get("shared_locks"))
 
-        # Mirror wearer lock sensors onto both device views.
-        # Keyholder lock sensors are intentionally not created here.
+        # Only create wearer lock sensors. Keyholder lock sensors are intentionally omitted.
         for item in wearer_locks:
             lock_id = _id(item)
             if not lock_id:
@@ -268,8 +277,6 @@ class ChasterWearerUsernameSensor(ChasterEntity, SensorEntity):
         if not lock:
             return None
 
-        # Keyholder search responses can expose the wearer as a nested user
-        # object, or directly on the lock depending on the API response shape.
         for key in ("wearer", "user", "profile", "account"):
             username = _username(lock.get(key))
             if username:
