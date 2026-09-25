@@ -195,10 +195,17 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ROLE_KEYHOLDER: [],
             }
 
+            keyholder_items = self._dict_list(
+                keyholder.get("items")
+                or keyholder.get("locks")
+                or keyholder.get("results")
+                or keyholder.get("data")
+            )
+
             # Refresh active keyholder lock details so extension data is
             # available on the Keyholder device as well as the My lock device.
             refreshed_keyholder_items: list[dict[str, Any]] = []
-            for item in keyholder_items if isinstance(keyholder_items, list) else []:
+            for item in keyholder_items:
                 lock_item = item.get("lock") if isinstance(item.get("lock"), dict) else item
                 lock_item_id = self.lock_id(lock_item)
                 if not isinstance(lock_item, dict) or not lock_item_id:
