@@ -241,4 +241,35 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
             await self.coordinator.api.emergency_unlock(lock_id)
         elif self._action == "archive":
             await self.coordinator.api.archive(lock_id, keyholder=self._role == "keyholder")
+
+            # Remove the archived lock from the coordinator immediately.
+            # The coordinator normally preserves missing locks between API
+            # refreshes, which would otherwise keep the Archive button
+            # available until another fresh API result replaces the old data.
+            data = self.coordinator.data if isinstance(self.coordinator.data, dict) else {}
+            if data:
+                locks = data.get("locks")
+                if isinstance(locks, list):
+                    data["locks"] = [
+                        item for item in locks
+                        if self.coordinator.lock_id(item) != lock_id
+                    ]
+
+                current = data.get("current_lock")
+                if (
+                    isinstance(current, dict)
+                    and self.coordinator.lock_id(current) == lock_id
+                ):
+                    data["current_lock"] = None
+
+                keyholder = data.get("keyholder")
+                if isinstance(keyholder, dict):
+                    for key in ("items", "locks", "results", "data"):
+                        items = keyholder.get(key)
+                        if isinstance(items, list):
+                            keyholder[key] = [
+                                item for item in items
+                                if self.coordinator.lock_id(item) != lock_id
+                            ]
+
         await self.coordinator.async_request_refresh()
