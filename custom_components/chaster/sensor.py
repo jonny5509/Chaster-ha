@@ -72,7 +72,7 @@ def _remaining(item: Any) -> int | None:
 
 
 def _format_duration(seconds: Any) -> str | None:
-    """Format seconds as DDd HH:MM:SS."""
+    """Format seconds as HH:MM:SS."""
     value = _number(seconds)
     if value is None:
         return None
@@ -80,7 +80,8 @@ def _format_duration(seconds: Any) -> str | None:
     days, value = divmod(value, 86400)
     hours, value = divmod(value, 3600)
     minutes, seconds = divmod(value, 60)
-    return f"{days}d {hours:02d}:{minutes:02d}:{seconds:02d}"
+    total_hours = days * 24 + hours
+    return f"{total_hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
 def _permissions(item: Any) -> dict[str, Any]:
