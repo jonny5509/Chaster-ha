@@ -175,31 +175,26 @@ async def async_setup_entry(hass, entry, async_add_entities):
         dynamic = []
 
         wearer_locks = coordinator._dict_list(data.get("locks"))
-        keyholder_locks = [_nested_lock(x) for x in _keyholder_items(coordinator)]
         shared_locks = coordinator._dict_list(data.get("shared_locks"))
 
-        # Mirror every lock sensor onto both devices. The source role is kept
-        # in the unique_id so the two device views stay complete and stable.
-        for source_role, locks in (
-            ("wearer", wearer_locks),
-            ("keyholder", keyholder_locks),
-        ):
-            for item in locks:
-                lock_id = _id(item)
-                if not lock_id:
-                    continue
-                for device_role in ("wearer", "keyholder"):
-                    key = (device_role, f"{source_role}:{lock_id}")
-                    if key not in added_lock_ids:
-                        added_lock_ids.add(key)
-                        dynamic.append(
-                            ChasterLockSensor(
-                                coordinator,
-                                item,
-                                device_role,
-                                source_role=source_role,
-                            )
+        # Mirror wearer lock sensors onto both device views.
+        # Keyholder lock sensors are intentionally not created here.
+        for item in wearer_locks:
+            lock_id = _id(item)
+            if not lock_id:
+                continue
+            for device_role in ("wearer", "keyholder"):
+                key = (device_role, f"wearer:{lock_id}")
+                if key not in added_lock_ids:
+                    added_lock_ids.add(key)
+                    dynamic.append(
+                        ChasterLockSensor(
+                            coordinator,
+                            item,
+                            device_role,
+                            source_role="wearer",
                         )
+                    )
 
         # Shared locks are also mirrored onto both device views.
         for item in shared_locks:
