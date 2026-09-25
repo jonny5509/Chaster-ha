@@ -332,7 +332,8 @@ class ChasterTimeLockedSensor(ChasterEntity, SensorEntity):
             parsed = datetime.fromisoformat(start.replace("Z", "+00:00"))
             if parsed.tzinfo is None:
                 parsed = parsed.replace(tzinfo=timezone.utc)
-            return max(0, int((datetime.now(timezone.utc) - parsed).total_seconds()))
+            elapsed = max(0, int((datetime.now(timezone.utc) - parsed).total_seconds()))
+            return _format_duration(elapsed)
         except (TypeError, ValueError, OverflowError):
             return None
 
