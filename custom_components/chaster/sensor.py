@@ -220,18 +220,18 @@ async def async_setup_entry(hass, entry, async_add_entities):
             lock_id = _id(item)
             if not lock_id:
                 continue
-            for device_role in ("wearer", "keyholder"):
-                key = (device_role, f"wearer:{lock_id}")
-                if key not in added_lock_ids:
-                    added_lock_ids.add(key)
-                    dynamic.append(
-                        ChasterLockSensor(
-                            coordinator,
-                            item,
-                            device_role,
-                            source_role="wearer",
-                        )
+            device_role = "wearer"
+            key = (device_role, f"wearer:{lock_id}")
+            if key not in added_lock_ids:
+                added_lock_ids.add(key)
+                dynamic.append(
+                    ChasterLockSensor(
+                        coordinator,
+                        item,
+                        device_role,
+                        source_role="wearer",
                     )
+                )
 
         # Shared locks are mirrored onto both device views.
         for item in shared_locks:
