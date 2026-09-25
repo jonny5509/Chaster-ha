@@ -216,11 +216,16 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     item for item in role_items
                     if isinstance(item, dict)
                     and self.lock_id(item)
-                    and str(item.get("status", "")).lower() == "locked"
+                    and self.is_active(item)
                 ]
                 active_lock = max(
                     active_items,
-                    key=lambda item: str(item.get("startDate") or ""),
+                    key=lambda item: str(
+                        item.get("startDate")
+                        or item.get("startAt")
+                        or item.get("createdAt")
+                        or ""
+                    ),
                     default=None,
                 )
                 if active_lock and self.lock_id(active_lock):
@@ -246,6 +251,7 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "locks": locks,
                 "current_lock": current,
                 "history": history,
+                "history_by_role": history_by_role,
                 "shared_locks": shared,
                 "keyholder": keyholder,
                 "conversations": conversations,
