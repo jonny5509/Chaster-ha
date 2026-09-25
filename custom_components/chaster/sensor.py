@@ -183,8 +183,13 @@ async def async_setup_entry(hass, entry, async_add_entities):
             continue
         original_name = entity.original_name or ""
         registry_name = entity.name or ""
+        legacy_my_lock_keyholder = (
+            entity.unique_id.startswith(f"{entry.entry_id}_lock_wearer_")
+            and entity.unique_id.endswith("_keyholder")
+        )
         if (
             entity.unique_id.startswith(stale_prefix)
+            or legacy_my_lock_keyholder
             or original_name.startswith("Keyholder lock")
             or registry_name.startswith("Keyholder lock")
         ):
