@@ -170,6 +170,13 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # Remove stale Keyholder lock entities created by older versions.
     # These may appear under either the My lock or Keyholder device.
     registry = er.async_get(hass)
+    stale_entity_ids = {
+        "sensor.chas_chaster_my_lock_my_lock_keyholder_lock",
+        "sensor.chas_chaster_keyholder_my_lock_keyholder_lock",
+    }
+    for entity_id in stale_entity_ids:
+        if entity_id in registry.entities:
+            registry.async_remove(entity_id)
     stale_prefix = f"{entry.entry_id}_lock_keyholder_"
     for entity in list(registry.entities.values()):
         if entity.config_entry_id != entry.entry_id:
