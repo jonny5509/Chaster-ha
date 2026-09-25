@@ -195,6 +195,37 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ROLE_KEYHOLDER: [],
             }
 
+            # Refresh active keyholder lock details so extension data is
+            # available on the Keyholder device as well as the My lock device.
+            refreshed_keyholder_items: list[dict[str, Any]] = []
+            for item in keyholder_items if isinstance(keyholder_items, list) else []:
+                lock_item = item.get("lock") if isinstance(item.get("lock"), dict) else item
+                lock_item_id = self.lock_id(lock_item)
+                if not isinstance(lock_item, dict) or not lock_item_id:
+                    refreshed_keyholder_items.append(item)
+                    continue
+                if self.is_active(lock_item):
+                    try:
+                        detail = await self.api.lock(lock_item_id)
+                        if isinstance(detail, dict) and self.lock_id(detail) == lock_item_id:
+                            if isinstance(item.get("lock"), dict):
+                                item = {**item, "lock": detail}
+                            else:
+                                item = detail
+                    except ChasterApiError as err:
+                        _LOGGER.debug(
+                            "Unable to refresh keyholder lock %s: %s",
+                            lock_item_id,
+                            err,
+                        )
+                refreshed_keyholder_items.append(item)
+
+            if refreshed_keyholder_items:
+                for key in ("items", "locks", "results", "data"):
+                    if isinstance(keyholder.get(key), list):
+                        keyholder[key] = refreshed_keyholder_items
+                        break
+
             keyholder_items = self._dict_list(
                 keyholder.get("items")
                 or keyholder.get("locks")
