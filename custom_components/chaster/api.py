@@ -57,6 +57,22 @@ class ChasterApi:
             json=payload or {"status": "locked", "page": 0, "limit": 50},
         )
 
+    async def lock_extension(self, lock_id: str, extension_id: str) -> Any:
+        """Get information from an extension attached to a lock."""
+        return await self.request(
+            "GET", f"/locks/{lock_id}/extensions/{extension_id}"
+        )
+
+    async def lock_extension_action(
+        self, lock_id: str, extension_id: str, payload: dict[str, Any]
+    ) -> Any:
+        """Trigger an action exposed by a lock extension."""
+        return await self.request(
+            "POST",
+            f"/locks/{lock_id}/extensions/{extension_id}/action",
+            json=payload,
+        )
+
     async def shared_locks(self, status: str = "active") -> Any:
         return await self.request("GET", "/shared-locks", params={"status": status})
 
