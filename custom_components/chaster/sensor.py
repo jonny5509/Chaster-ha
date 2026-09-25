@@ -165,22 +165,27 @@ def _active_lock(coordinator: ChasterCoordinator, role: str) -> dict[str, Any]:
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator: ChasterCoordinator = hass.data[entry.domain][entry.entry_id]
 
-    # Remove stale dynamic Keyholder lock sensors created by older versions.
+    # Remove stale Keyholder lock entities created by older versions.
+    # These may appear under either the My lock or Keyholder device.
     registry = er.async_get(hass)
     stale_prefix = f"{entry.entry_id}_lock_keyholder_"
     for entity in list(registry.entities.values()):
-        if entity.config_entry_id == entry.entry_id and entity.unique_id.startswith(stale_prefix):
+        if entity.config_entry_id != entry.entry_id:
+            continue
+        original_name = entity.original_name or ""
+        if (
+            entity.unique_id.startswith(stale_prefix)
+            or original_name.startswith("Keyholder lock")
+        ):
             registry.async_remove(entity.entity_id)
 
     entities = [
-        # Chaster - My lock
         ChasterUsernameSensor(coordinator, "wearer"),
         ChasterKeyholderUsernameSensor(coordinator),
         ChasterLockTitleSensor(coordinator, "wearer"),
         ChasterTimeLockedSensor(coordinator, "wearer"),
         ChasterTimeRemainingSensor(coordinator, "wearer"),
         ChasterHistorySensor(coordinator, "wearer"),
-        # Chaster - Keyholder
         ChasterUsernameSensor(coordinator, "keyholder"),
         ChasterWearerUsernameSensor(coordinator),
         ChasterLockTitleSensor(coordinator, "keyholder"),
@@ -199,7 +204,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         wearer_locks = coordinator._dict_list(data.get("locks"))
         shared_locks = coordinator._dict_list(data.get("shared_locks"))
 
-        # Only create wearer lock sensors. Keyholder lock sensors are intentionally omitted.
+        # Only create wearer lock sensors. Keyholder lock sensors are omitted.
         for item in wearer_locks:
             lock_id = _id(item)
             if not lock_id:
@@ -217,7 +222,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                         )
                     )
 
-        # Shared locks are also mirrored onto both device views.
+        # Shared locks are mirrored onto both device views.
         for item in shared_locks:
             lock_id = _id(item)
             if not lock_id:
@@ -276,17 +281,14 @@ class ChasterWearerUsernameSensor(ChasterEntity, SensorEntity):
         lock = _active_lock(self.coordinator, "keyholder")
         if not lock:
             return None
-
         for key in ("wearer", "user", "profile", "account"):
             username = _username(lock.get(key))
             if username:
                 return username
-
         for key in ("wearerUsername", "wearer_username"):
             username = _username(lock.get(key))
             if username:
                 return username
-
         return None
 
 
