@@ -173,9 +173,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
         if entity.config_entry_id != entry.entry_id:
             continue
         original_name = entity.original_name or ""
+        registry_name = entity.name or ""
         if (
             entity.unique_id.startswith(stale_prefix)
             or original_name.startswith("Keyholder lock")
+            or registry_name.startswith("Keyholder lock")
         ):
             registry.async_remove(entity.entity_id)
 
