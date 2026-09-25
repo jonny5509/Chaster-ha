@@ -36,7 +36,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 ("freeze", "Freeze", "mdi:snowflake"),
                 ("unfreeze", "Unfreeze", "mdi:snowflake-off"),
                 ("unlock", "Unlock", "mdi:lock-open"),
-                ("archive", "Archive", "mdi:archive"),
             )
         for action, suffix, icon in actions:
             entities.append(ChasterActionButton(coordinator, action, f"{label} - {suffix}", icon, role))
