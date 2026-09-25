@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.helpers import entity_registry as er
 
 from .api import ChasterApiError
 from .coordinator import ChasterCoordinator
@@ -11,6 +12,12 @@ from .entity import ChasterEntity
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator: ChasterCoordinator = hass.data[entry.domain][entry.entry_id]
+
+    # Remove the old Keyholder - Archive entity from the registry so it
+    # does not remain visible after the button is no longer created.
+    registry = er.async_get(hass)
+    registry.async_remove(f"{entry.entry_id}_keyholder_archive")
+
     entities = []
     for role, label in (("wearer", "My lock"), ("keyholder", "Keyholder")):
         entities.append(
