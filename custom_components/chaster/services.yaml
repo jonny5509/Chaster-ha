@@ -81,7 +81,7 @@ send_message:
       description: Defaults to /conversations for creating a conversation.
       required: false
       selector:
-        text
+        text:
     body:
       name: JSON body
       required: true
@@ -108,7 +108,7 @@ api_request:
       description: Path beginning with /.
       required: true
       selector:
-        text
+        text:
     params:
       name: Query parameters
       required: false
