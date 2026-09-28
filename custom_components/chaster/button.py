@@ -258,6 +258,8 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
             return status in {"unlocked", "ready-to-archive"}
         if self._action == "history":
             return self.coordinator.is_active(lock)
+        if self._action in {"add_1_day", "add_1_hour", "subtract_1_day", "subtract_1_hour"}:
+            return self.coordinator.is_active(lock)
         return True
 
     @property
@@ -305,7 +307,9 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
         if self._action == "history":
             result = await self.coordinator.api.history(lock_id)
             self.hass.bus.async_fire("chaster_history", {"lock_id": lock_id, "role": self._role, "history": result})
-        elif self._action in {"add_1_day", "add_1_hour", "subtract_1_day", "subtract_1_hour"}:\n            seconds = {"add_1_day": 86400, "add_1_hour": 3600, "subtract_1_day": -86400, "subtract_1_hour": -3600}[self._action]\n            await self.coordinator.api.update_time(lock_id, seconds)\n        elif self._action == "freeze":
+        elif self._action in {"add_1_day", "add_1_hour", "subtract_1_day", "subtract_1_hour"}:
+            seconds = {"add_1_day": 86400, "add_1_hour": 3600, "subtract_1_day": -86400, "subtract_1_hour": -3600}[self._action]
+            await self.coordinator.api.update_time(lock_id, seconds)\n        elif self._action == "freeze":
             await self.coordinator.api.freeze(lock_id, True)
         elif self._action == "unfreeze":
             await self.coordinator.api.freeze(lock_id, False)
