@@ -36,7 +36,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
         "emergency_unlock": "Emergency unlock",
         "archive": "Archive",
         "freeze": "Freeze",
-        "unfreeze": "Unfreeze",\n        "add_1_day": "Add 1 day",\n        "add_1_hour": "Add 1 hour",\n        "subtract_1_day": "Subtract 1 day",\n        "subtract_1_hour": "Subtract 1 hour",
+        "unfreeze": "Unfreeze",
+        "add_1_day": "Add 1 day",
+        "add_1_hour": "Add 1 hour",
+        "subtract_1_day": "Subtract 1 day",
+        "subtract_1_hour": "Subtract 1 hour",
     }
     for role in ("wearer", "keyholder"):
         device = devices.async_get_device(
@@ -73,6 +77,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
         )
         actions = (
             ("history", "Refresh history", "mdi:history"),
+            ("add_1_day", "Add 1 day", "mdi:plus-circle"),
+            ("add_1_hour", "Add 1 hour", "mdi:plus"),
+            ("subtract_1_day", "Subtract 1 day", "mdi:minus-circle"),
+            ("subtract_1_hour", "Subtract 1 hour", "mdi:minus"),
             ("unlock", "Unlock", "mdi:lock-open"),
             ("emergency_unlock", "Emergency unlock", "mdi:alert-octagon"),
             ("archive", "Archive", "mdi:archive"),
