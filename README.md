@@ -1,54 +1,39 @@
 # Chaster for Home Assistant
 
-A HACS custom integration that connects Home Assistant to the Chaster Public API using a Chaster developer token.
+A HACS-compatible Home Assistant custom integration for the [Chaster](https://chaster.app/) Public API.
 
-It exposes Chaster lock information, countdowns, task progress, role-specific status, messaging, history, permissions, and lock-control actions as Home Assistant entities and services.
+The integration connects Home Assistant to Chaster using a developer/API token and exposes lock status, countdowns, task progress, role information, action controls, services, and Home Assistant events.
 
-> **Important:** Chaster remains the authority for account permissions, lock permissions, safety restrictions, and whether an action is allowed. This integration does not bypass Chaster API scopes or lock restrictions.
+> **Important:** Chaster remains the authority for authentication, API scopes, lock permissions, timer restrictions, and safety restrictions. This integration does not bypass Chaster permissions or server-side checks.
 
 ## Features
 
 - 🔐 Developer-token authentication through the Home Assistant config flow
-- 🔄 Token validation during setup and automatic reauthentication when credentials are rejected
-- 👤 Role modes:
-  - **Auto** — detect available wearer/keyholder access
-  - **Wearer**
-  - **Keyholder**
-  - **Both**
-- 🔒 Current lock data for wearer and keyholder views
-- 🕒 Countdown sensors:
-  - **Time Locked**
-  - **Time Remaining**
-  - **Maximum Time Remaining**
-- ⚡ Countdown values are recalculated locally every second, without making a Chaster API request every second
-- ⭐ Task progress:
-  - **Task Points**
-  - **Task Points Required**
-  - **Task Points Remaining**
-- 👤 Username, lock-title, and session-role sensors
-- 🔗 Optional shared-lock data
-- 💬 Optional conversation/messaging support
-- 🔘 Lock-control buttons:
-  - Refresh
-  - Refresh history
-  - Unlock
-  - Emergency unlock
-  - Archive
-  - Freeze
-  - Unfreeze
-- ➕ Time adjustment services
+- 🔄 Token validation during setup and reauthentication when credentials are rejected
+- 👤 Role modes: Auto, Wearer, Keyholder, and Both
+- 🔒 Wearer and keyholder lock views
+- 🕒 Local countdown sensors that update every second without an API request every second
+- 📅 Lock start/end dates and timer visibility
+- 🏷️ Lock title and lock type
+- ⭐ Tasks extension progress: Task Points, Task Points Required, Task Points Remaining, and Task Assigned
+- 👤 Wearer/keyholder username sensors
+- 🔐 Session-role sensors
+- 🔘 State/permission-aware controls: Refresh, Refresh history, Unlock, Emergency unlock, Archive, Freeze, and Unfreeze
+- ⚡ Add/remove lock time services
 - 🧩 Generic Chaster API request and lock-action services
+- 💬 Chaster conversation and messaging support
+- 🔗 Optional shared-lock support
 - 📡 Home Assistant events for API responses, actions, messages, and history
-- 🔐 Permission-aware action availability
-- 🧹 Automatic cleanup of obsolete entities from older versions
+- 🧹 Cleanup of obsolete entities from older versions
+- 🖥️ Built-in Chaster Card Lovelace custom card
 
 ## Requirements
 
-- Home Assistant
-- HACS, if installing through HACS
+- [Home Assistant](https://www.home-assistant.io/)
+- [HACS](https://hacs.xyz/) for the recommended installation method
 - A Chaster account
 - A Chaster developer/API token with the scopes required for the features you want to use
-- Network access from Home Assistant to the Chaster API
+- Network access from Home Assistant to https://api.chaster.app
 
 ## Installation
 
@@ -58,41 +43,42 @@ It exposes Chaster lock information, countdowns, task progress, role-specific st
 2. Search for **Chaster**.
 3. Install the integration.
 4. Restart Home Assistant.
-5. Go to **Settings → Devices & services → Add Integration**.
-6. Search for **Chaster**.
-7. Enter your Chaster developer token.
+5. Go to **Settings → Devices & services**.
+6. Select **Add Integration**.
+7. Search for **Chaster**.
+8. Enter your Chaster developer token.
+
+The repository is configured for HACS with content kept under custom_components and README rendering enabled.
 
 ### Manual
 
-Copy the `custom_components/chaster` directory into:
+Copy the custom_components/chaster directory into:
 
-```text
+~~~
 /config/custom_components/chaster
-```
+~~~
 
 Restart Home Assistant and add **Chaster** from **Settings → Devices & services**.
 
 ## Authentication
 
-The integration uses a **Chaster developer token**. It does not use OAuth, browser login, client IDs, client secrets, or OAuth callbacks.
+The integration uses a **Chaster developer token**.
+
+It does **not** use OAuth, browser login, client IDs, client secrets, or OAuth callbacks.
 
 ### Creating a developer token
 
-1. Open the Chaster developer area.
+1. Open the [Chaster developer area](https://chaster.app/developers).
 2. Request API access if required for your account.
-3. Open the **Developer interface**.
+3. Open the Chaster Developer interface.
 4. Create or open an application.
-5. Open **Tokens**.
+5. Select **Tokens**.
 6. Generate a developer token.
 7. Copy the token into the Home Assistant Chaster configuration flow.
 
-**Keep the token private.** Do not publish it in GitHub issues, screenshots, logs, forums, Discord, or configuration examples.
+**Keep the token private.** Never publish it in GitHub issues, screenshots, logs, forums, Discord, or configuration examples.
 
-### Token validation
-
-During setup, the integration validates the token against the Chaster profile endpoint.
-
-If Chaster returns an authentication/authorization failure, Home Assistant can request reauthentication so the stored token can be replaced.
+During setup the integration validates the token using the Chaster profile endpoint. If the token is rejected later, Home Assistant can start the reauthentication flow so the stored token can be replaced.
 
 ## Configuration
 
@@ -100,56 +86,63 @@ After installation, open:
 
 **Settings → Devices & services → Chaster → Configure**
 
-The options are:
+Available options:
 
 | Option | Description |
 | --- | --- |
 | **Polling interval** | Requested interval for Chaster API refreshes. |
 | **Role mode** | Auto, Wearer, Keyholder, or Both. |
-| **Keyholder features** | Enables keyholder-related API data and entities. |
-| **Shared locks** | Enables shared-lock requests. |
-| **Messaging** | Enables conversation/message data. |
-| **Lock actions** | Enables actions that can modify or control locks. |
+| **Enable keyholder features** | Enables keyholder-related API data and entities. |
+| **Enable shared locks** | Enables shared-lock requests. |
+| **Enable messaging** | Enables conversation/message polling. |
+| **Enable lock actions** | Enables actions that can modify or control locks. |
 
 ### Polling interval
 
-The configuration accepts **30–3600 seconds**.
+The configured polling interval accepts values from **30 to 3600 seconds**.
 
-The current coordinator intentionally caps the actual API refresh interval at **10 seconds**. This keeps action availability responsive, particularly around timer expiry, while the countdown sensors themselves update locally every second.
-
-**Important:** a one-second countdown display does **not** mean the integration sends an API request every second.
+Countdown sensors update their displayed state locally once per second. The coordinator performs API polling separately, so the one-second countdown does not mean Chaster is queried every second.
 
 ## Roles and devices
 
-The integration supports two role views:
+The integration provides two role-specific Home Assistant device views:
 
-- **Wearer / My lock**
-- **Keyholder**
+- **Chaster - My lock**
+- **Chaster - Keyholder**
 
-Depending on role mode and the permissions returned by Chaster, Home Assistant can expose entities for one or both roles.
+Role availability depends on the selected role mode and the permissions/data returned by Chaster.
 
-The integration also tracks the detected role in coordinator data and exposes a **Session Role** sensor for the relevant view.
+A **Session Role** sensor is exposed for each role view.
 
 ## Sensors
 
-The integration provides role-specific sensors where applicable.
+The current integration provides the following sensors for the relevant role.
 
 ### Identity and lock information
 
 - **Wearer Username**
 - **Keyholder Username**
 - **Lock Title**
+- **Lock Type**
+- **Start Date**
+- **End Date**
+- **Timer Visible**
 - **Session Role**
+
+The Lock Title sensor also exposes attributes including the current lock ID, role, and lock status when a lock is active.
 
 ### Countdown sensors
 
 - **Time Locked**
 - **Time Remaining**
-- **Maximum Time Remaining**
 
-Countdown values are represented as `HH:MM:SS`.
+Countdown values are displayed as:
 
-The displayed countdown is recalculated locally once per second. Chaster API data is refreshed separately by the coordinator.
+~~~
+HH:MM:SS
+~~~
+
+These values are calculated locally from the lock timestamps and refreshed by Home Assistant every second.
 
 ### Task sensors
 
@@ -157,13 +150,13 @@ The displayed countdown is recalculated locally once per second. Chaster API dat
 - **Task Points Required**
 - **Task Points Remaining**
 
-Task-point information is derived from the available Chaster lock/extension data.
+Task points are derived from the active lock and recognized Tasks extension action history.
 
-If the task-point configuration is unavailable, the required/remaining task-point sensors fall back to `0`.
+If Chaster does not expose a task-point target in the available data, the required/remaining sensors fall back to 0.
 
 ## Binary sensors
 
-For wearer and keyholder views, the integration provides:
+For both wearer and keyholder views:
 
 - **Locked**
 - **Ready to unlock**
@@ -172,23 +165,23 @@ For wearer and keyholder views, the integration provides:
 
 ### Locked
 
-Indicates whether the current role's active lock is considered active by the integration.
+Indicates whether the integration considers the current role's lock active.
 
 ### Ready to unlock
 
-Becomes active when the lock timer has expired while the lock remains in a lock state that supports unlocking.
+Becomes active when an active lock has a valid end/unlock timestamp, the timer has expired, and the current lock state supports unlocking.
 
 ### Frozen
 
-Reflects the lock's frozen state when that state is exposed by Chaster.
+Reflects the lock's frozen state when exposed by Chaster.
 
 ### Task Assigned
 
-Uses the role-specific lock history and the latest recognized Tasks action to determine whether a task is currently assigned.
+Uses the latest recognized Tasks action in the role-specific lock history. A task is considered assigned when the latest recognized Tasks action is an assignment rather than a completion or failure.
 
 ## Buttons
 
-The integration creates role-specific action buttons for:
+The integration creates role-specific buttons for:
 
 - **Refresh**
 - **Refresh history**
@@ -198,7 +191,7 @@ The integration creates role-specific action buttons for:
 - **Freeze**
 - **Unfreeze**
 
-Button availability is evaluated against the current lock state and integration settings.
+Button availability is evaluated against the current lock state, selected integration options, and available permissions.
 
 ### Refresh
 
@@ -206,98 +199,96 @@ Requests an immediate coordinator refresh.
 
 ### Refresh history
 
-Retrieves the current lock history and fires the `chaster_history` Home Assistant event.
+Retrieves lock history and fires the chaster_history Home Assistant event.
 
 ### Unlock
 
-Normal unlock is only made available after the lock timer has expired.
+Normal unlock is protected against stale Home Assistant state.
 
-Before sending the unlock request, the integration fetches the current lock detail and verifies the timer again. This prevents a stale Home Assistant state from being used to unlock an active timer.
+Before sending the unlock request, the integration fetches the current lock details and verifies the current end time. If the timer has not expired, the unlock request is blocked locally.
+
+Chaster also performs its own authoritative permission check.
 
 ### Emergency unlock
 
-Emergency unlock is restricted to the wearer role by the integration and remains subject to Chaster's own permissions.
+Emergency unlock is exposed only where the integration's role/action rules allow it and remains subject to Chaster's server-side permissions.
 
 ### Archive
 
-Archives an eligible unlocked lock. The integration also removes the archived lock from its local coordinator data before refreshing, so the obsolete Archive action does not remain available unnecessarily.
+Archives an eligible lock. The integration also removes the archived lock from local coordinator data before refreshing so obsolete action controls do not remain available.
 
 ### Freeze / Unfreeze
 
-These actions are only made available when the current lock state supports the corresponding operation and lock actions are enabled.
+These actions are exposed when the current lock state supports the operation and **Enable lock actions** is enabled.
 
 Chaster remains responsible for the final permission check.
 
 ## Services
 
-All service names use the `chaster` domain.
+All services use the chaster domain.
 
-### `chaster.add_time`
+### chaster.add_time
 
-Adds seconds to a known Chaster lock.
+Adds seconds to a Chaster lock.
 
-The service accepts between **1 and 31,536,000 seconds**.
+The service accepts **1 to 31,536,000 seconds**.
 
-```yaml
+~~~yaml
 action: chaster.add_time
 data:
   lock_id: LOCK_ID
   seconds: 3600
-```
+~~~
 
-### `chaster.remove_time`
+### chaster.remove_time
 
-Removes seconds from a known Chaster lock.
+Removes seconds from a Chaster lock.
 
-The service accepts between **1 and 31,536,000 seconds**.
-
-```yaml
+~~~yaml
 action: chaster.remove_time
 data:
   lock_id: LOCK_ID
   seconds: 600
-```
+~~~
 
 The integration sends the corresponding positive or negative duration to Chaster. Chaster decides whether the requested change is permitted.
 
-### `chaster.lock_action`
+### chaster.lock_action
 
-Calls a Chaster lock-action endpoint for a known lock.
+Calls a Chaster lock-action endpoint.
 
-```yaml
+~~~yaml
 action: chaster.lock_action
 data:
   lock_id: LOCK_ID
   path: /locks/{lock_id}/...
   method: POST
   body: {}
-```
+~~~
 
-Supported methods are:
+Supported methods:
 
 - POST
 - PUT
 - PATCH
 - DELETE
 
-The `{lock_id}` placeholder in the path is replaced with the supplied lock ID.
+The {lock_id} placeholder is replaced with the supplied lock ID. Lock actions must be enabled in the integration options.
 
-Lock actions must be enabled in the integration options.
+### chaster.api_request
 
-### `chaster.api_request`
+Provides a generic interface to Chaster Public API endpoints available to the authenticated developer token.
 
-Provides a generic interface to documented Chaster Public API endpoints.
-
-```yaml
+~~~yaml
 action: chaster.api_request
 data:
   method: GET
   path: /permissions/definitions
   params: {}
   body: {}
-```
+~~~
 
-Supported methods are:
+Supported methods:
 
 - GET
 - POST
@@ -305,78 +296,95 @@ Supported methods are:
 - PATCH
 - DELETE
 
-API paths must begin with `/`.
+API paths must begin with /. Use the official Chaster API documentation as the source of truth for endpoint paths, request parameters, request bodies, scopes, permissions, and response formats.
 
-Use the official Chaster API documentation as the source of truth for endpoint paths, request parameters, request bodies, permissions, and response formats.
-
-### `chaster.send_message`
+### chaster.send_message
 
 Sends a message through a Chaster conversation endpoint.
 
-```yaml
+~~~yaml
 action: chaster.send_message
 data:
   path: /conversations/CONVERSATION_ID
   body:
     # documented Chaster message payload
-```
+~~~
 
-If `path` is omitted, the service defaults to `/conversations`.
+If path is omitted, the service defaults to /conversations.
 
-Messaging data must be enabled in the integration options for the normal conversation polling path. The service itself uses the configured Chaster developer token and remains subject to Chaster permissions.
+Messaging must be enabled in the integration options for the normal conversation polling path. The service uses the configured developer token and remains subject to Chaster permissions.
 
 ## Home Assistant events
 
-The integration fires these events on the Home Assistant event bus.
+### chaster_api_response
 
-### `chaster_api_response`
+Fired after a successful chaster.api_request call. The event contains the requested method/path and API result.
 
-Fired after a successful `chaster.api_request` call.
-
-Example:
-
-```yaml
-method: GET
-path: /permissions/definitions
-result: ...
-```
-
-### `chaster_action`
+### chaster_action
 
 Fired after a successful generic lock action or time change.
 
 Example:
 
-```yaml
+~~~yaml
 lock_id: LOCK_ID
 action: add_time
 seconds: 3600
 result: ...
-```
+~~~
 
-For `chaster.lock_action`, the event contains the lock ID, resolved path, and API result.
+For chaster.lock_action, the event contains the lock ID, resolved path, and API result.
 
-### `chaster_message`
+### chaster_message
 
-Fired after a successful `chaster.send_message` call.
+Fired after a successful chaster.send_message call. The event contains the API result.
 
-The event contains the API result.
+### chaster_history
 
-### `chaster_history`
+Fired when a role-specific **Refresh history** button retrieves lock history. The event contains:
 
-Fired when a role-specific **Refresh history** button retrieves lock history.
+- lock_id
+- role
+- history
 
-The event contains:
+## Built-in Chaster Card
 
-- `lock_id`
-- `role`
-- `history`
+The repository includes a Lovelace custom card at:
+
+~~~
+custom_components/chaster/www/chaster-card.js
+~~~
+
+The integration registers the card automatically at:
+
+~~~
+/chaster/chaster-card.js
+~~~
+
+After installing/updating the integration and restarting Home Assistant, the card can be used as:
+
+~~~yaml
+type: custom:chaster-card
+~~~
+
+The current card displays:
+
+- Time locked
+- Time remaining
+- Maximum remaining, when a matching entity is available
+- Task points
+- Refresh
+- Refresh history
+- Unlock
+- Emergency unlock
+
+The card discovers matching Chaster entities from Home Assistant and invokes the corresponding button services.
 
 ## API coverage
 
 The internal API client currently provides helpers for:
 
-- Profile
+- Profile authentication
 - Wearer locks
 - Individual lock details
 - Keyholder lock search
@@ -384,6 +392,7 @@ The internal API client currently provides helpers for:
 - Lock extension actions
 - Shared locks
 - Conversations
+- Individual conversations
 - Sending messages
 - Creating conversations
 - Adding/removing lock time
@@ -398,11 +407,11 @@ The internal API client currently provides helpers for:
 - Permission definitions
 - Keyholder notes
 
-The generic `chaster.api_request` service can also be used for documented endpoints that do not have a dedicated helper.
+The generic chaster.api_request service can also be used for documented Chaster Public API endpoints that do not have a dedicated helper.
 
 ## Permissions and safety
 
-The integration is intentionally permission-aware, but it is not a replacement for Chaster's authorization system.
+This integration is intentionally permission-aware, but it is **not** a replacement for Chaster's authorization system.
 
 It does not attempt to bypass:
 
@@ -421,123 +430,133 @@ Chaster performs the authoritative server-side permission check.
 
 If Chaster rejects an operation, the integration does not override the response.
 
-For normal unlock, the integration additionally verifies the lock's current end time immediately before sending the request.
+For normal unlock, the integration additionally verifies the current lock end time immediately before sending the unlock request.
 
 ## Data refresh behaviour
 
-The integration uses Home Assistant's `DataUpdateCoordinator`.
+The integration uses Home Assistant's DataUpdateCoordinator.
 
-The coordinator refreshes:
+Depending on the selected options and role, coordinator data can include:
 
 - Profile information
-- Wearer locks when requested
-- Keyholder lock search results when enabled/requested
-- Shared locks when enabled
-- Conversations when messaging is enabled
+- Wearer locks
+- Keyholder lock search results
+- Shared locks
+- Conversations
 - Current lock details
 - Active keyholder lock details
-- Role-specific history for active locks
+- Role-specific lock history
 
-The coordinator preserves some previously known data when a permission-scoped endpoint temporarily becomes unavailable, allowing the integration to continue operating without treating every optional permission failure as a complete integration failure.
+Optional permission-scoped data can be preserved when an optional endpoint temporarily becomes unavailable, allowing the integration to continue operating without treating every optional permission failure as a complete integration failure.
 
 ### Countdown refresh
 
-The three countdown sensors use a local Home Assistant one-second timer:
+Countdown sensors use a local one-second Home Assistant timer:
 
 - No Chaster API request is made every second.
-- The sensor recalculates its displayed state locally.
-- The coordinator continues to provide fresh Chaster data separately.
+- The sensor recalculates its displayed value locally.
+- The coordinator continues API refreshes separately.
 
 ## Existing installations and upgrades
 
-The integration stores the developer token under the config-entry data key `token`.
+The integration stores the developer token under the config-entry data key token.
 
-The current configuration flow is developer-token based.
+The current config flow is developer-token based and has been migrated away from older authentication/entity models.
 
-When upgrading from an older version that used a different authentication or entity model:
+When upgrading an existing installation:
 
-1. Restart Home Assistant after installing the new files.
-2. Check **Settings → Devices & services → Chaster**.
-3. Reconfigure the integration if Home Assistant requests reauthentication.
-4. If an old installation used OAuth-based authentication, remove the old Chaster entry and add it again with a developer token.
+1. Restart Home Assistant after installing the new integration files.
+2. Open **Settings → Devices & services → Chaster**.
+3. Reconfigure the integration if Home Assistant requests it.
+4. If the previous installation used an older authentication model, remove the old Chaster entry and add it again with a developer token.
 
-The integration contains cleanup logic for obsolete Chaster entities, including the old **Obedience connected** entity and legacy lock/history entities.
+The integration includes cleanup logic for obsolete entities, including legacy **Obedience connected**, history, dynamic lock, and older keyholder entities.
 
 ## Troubleshooting
 
 ### Integration does not load after an update
 
-Fully restart Home Assistant rather than only reloading an individual entity platform.
+Perform a full Home Assistant restart rather than only reloading an individual entity platform.
 
 Then check:
 
 **Settings → System → Logs**
 
-for errors mentioning:
+for errors containing:
 
-```text
+~~~
 custom_components.chaster
-```
+~~~
 
 ### Token rejected
 
 Generate a new Chaster developer token and use the integration's reauthentication flow or reconfigure the integration.
 
-Do not paste the token into a public issue.
+Do not paste the token into a public issue or log.
 
 ### A button is unavailable
 
 Button availability depends on:
 
-- The selected role
-- Whether a suitable active/eligible lock is present
-- The current lock status
-- The lock timer
-- The **Lock actions** option
-- The permissions returned by Chaster
+- Selected role
+- Presence of a suitable active/eligible lock
+- Current lock status
+- Lock timer
+- **Enable lock actions** setting
+- Permissions returned by Chaster
 - The specific action's role restrictions
 
-For example, normal **Unlock** is intentionally unavailable until the timer has expired.
+Normal **Unlock** is intentionally unavailable until the timer has expired and is rechecked against the current Chaster lock immediately before the request.
 
 ### Countdown is not ticking
 
-The countdown sensors are designed to update locally every second. If they are not changing:
+Countdown sensors are designed to update locally every second.
 
-1. Check that the integration loaded without Python/import errors.
+If they are not changing:
+
+1. Confirm the integration loaded without Python/import errors.
 2. Restart Home Assistant fully.
-3. Check the Chaster integration entities in **Settings → Devices & services**.
-4. Review the Home Assistant logs for errors from `custom_components.chaster`.
+3. Check the Chaster entities under **Settings → Devices & services**.
+4. Review Home Assistant logs for errors from custom_components.chaster.
 
 ### Service UI errors
 
-The service definitions are stored in:
+Service definitions are stored in:
 
-```text
+~~~
 custom_components/chaster/services.yaml
-```
+~~~
 
-JSON-style service fields use Home Assistant object selectors.
+The service schemas use Home Assistant selectors for text, numbers, HTTP methods, and JSON objects.
 
 ## Development
 
-Source code lives in:
+The integration source is located in:
 
-```text
+~~~
 custom_components/chaster/
-```
+~~~
 
 Important modules include:
 
-- `__init__.py` — config-entry setup and service registration
-- `api.py` — authenticated Chaster API client
-- `config_flow.py` — token setup, reauthentication, and options
-- `coordinator.py` — API polling and shared integration state
-- `sensors.py` — sensor entities and local countdown refresh
-- `binary_sensor.py` — lock/task state entities
-- `button.py` — refresh and lock-action buttons
-- `services.yaml` — Home Assistant service descriptions
+| File | Purpose |
+| --- | --- |
+| custom_components/chaster/__init__.py | Config-entry setup, services, events, and static card registration |
+| custom_components/chaster/api.py | Authenticated Chaster Public API client |
+| custom_components/chaster/config_flow.py | Developer-token setup, reauthentication, and options |
+| custom_components/chaster/const.py | Integration constants, options, roles, and API base URL |
+| custom_components/chaster/coordinator.py | API polling and shared integration state |
+| custom_components/chaster/entity.py | Shared Home Assistant entity behaviour |
+| custom_components/chaster/sensors.py | Lock, identity, countdown, and task sensors |
+| custom_components/chaster/sensor.py | Sensor platform compatibility/setup |
+| custom_components/chaster/binary_sensor.py | Lock, unlock-ready, frozen, and task state |
+| custom_components/chaster/button.py | Refresh and lock-action buttons |
+| custom_components/chaster/services.yaml | Home Assistant service descriptions |
+| custom_components/chaster/translations/en.json | Config-flow and options UI text |
+| custom_components/chaster/www/chaster-card.js | Built-in Lovelace Chaster Card |
+| custom_components/chaster/brand/icon.png | Integration icon |
 
-The project is intended for Home Assistant and HACS.
+The repository is intended for Home Assistant and HACS.
 
 Recommended validation includes:
 
@@ -551,18 +570,19 @@ Recommended validation includes:
 Source code and issue tracking:
 
 - GitHub: https://github.com/jonny5509/Chaster-ha
+- Issues: https://github.com/jonny5509/Chaster-ha/issues
 
 ## Official Chaster documentation
 
 Use Chaster's documentation as the authoritative reference for API behaviour, scopes, permissions, endpoint paths, payloads, and response formats:
 
-- Getting started: https://docs.chaster.app/api/basics/getting-started/
-- Developer tokens: https://docs.chaster.app/api/public-api/developer-token/
-- Public API endpoints: https://docs.chaster.app/api/public-api/endpoints/
-- API scopes: https://docs.chaster.app/api/reference/scopes/
-- Tasks API: https://docs.chaster.app/api/extensions-api/interact-with-extensions/tasks/
-- Tasks extension: https://docs.chaster.app/extensions/tasks/
-- Action logs: https://docs.chaster.app/api/reference/action-logs/
+- [Getting started](https://docs.chaster.app/api/basics/getting-started/)
+- [Developer tokens](https://docs.chaster.app/api/public-api/developer-token/)
+- [Public API endpoints](https://docs.chaster.app/api/public-api/endpoints/)
+- [API scopes](https://docs.chaster.app/api/reference/scopes/)
+- [Tasks API](https://docs.chaster.app/api/extensions-api/interact-with-extensions/tasks/)
+- [Tasks extension](https://docs.chaster.app/extensions/tasks/)
+- [Action logs](https://docs.chaster.app/api/reference/action-logs/)
 
 ## License
 
