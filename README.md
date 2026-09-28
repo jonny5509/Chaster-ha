@@ -82,6 +82,10 @@ Treat your API token like a password. Do not share it, commit it to Git, or incl
 - Archive
 - Freeze
 - Unfreeze
+- Add 1 day
+- Add 1 hour
+- Subtract 1 day
+- Subtract 1 hour
 
 Availability depends on the current session, role, lock state, options, and Chaster permissions.
 
@@ -116,7 +120,7 @@ Use the built-in card with:
 type: custom:chaster-card
 ```
 
-It can display countdowns, task points, and common lock controls.
+It can display countdowns, task points, common lock controls, and 1-hour/1-day time adjustment controls.
 
 ## API
 
