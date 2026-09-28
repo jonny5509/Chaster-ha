@@ -18,7 +18,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # does not remain visible after the button is no longer created.
     registry = er.async_get(hass)
     devices = dr.async_get(hass)
-    allowed = {"Refresh", "Refresh history", "Unlock", "Emergency unlock", "Archive", "Freeze", "Unfreeze"}
+    allowed = {"Refresh", "Refresh history", "Unlock", "Emergency unlock", "Archive", "Freeze", "Unfreeze", "Add 1 day", "Add 1 hour", "Subtract 1 day", "Subtract 1 hour"}
     for entity in list(registry.entities.values()):
         if entity.config_entry_id == entry.entry_id and entity.domain == "button":
             if (entity.original_name or entity.name or "") not in allowed:
@@ -36,7 +36,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         "emergency_unlock": "Emergency unlock",
         "archive": "Archive",
         "freeze": "Freeze",
-        "unfreeze": "Unfreeze",
+        "unfreeze": "Unfreeze",\n        "add_1_day": "Add 1 day",\n        "add_1_hour": "Add 1 hour",\n        "subtract_1_day": "Subtract 1 day",\n        "subtract_1_hour": "Subtract 1 hour",
     }
     for role in ("wearer", "keyholder"):
         device = devices.async_get_device(
@@ -297,7 +297,7 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
         if self._action == "history":
             result = await self.coordinator.api.history(lock_id)
             self.hass.bus.async_fire("chaster_history", {"lock_id": lock_id, "role": self._role, "history": result})
-        elif self._action == "freeze":
+        elif self._action in {"add_1_day", "add_1_hour", "subtract_1_day", "subtract_1_hour"}:\n            seconds = {"add_1_day": 86400, "add_1_hour": 3600, "subtract_1_day": -86400, "subtract_1_hour": -3600}[self._action]\n            await self.coordinator.api.update_time(lock_id, seconds)\n        elif self._action == "freeze":
             await self.coordinator.api.freeze(lock_id, True)
         elif self._action == "unfreeze":
             await self.coordinator.api.freeze(lock_id, False)
