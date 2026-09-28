@@ -268,6 +268,9 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
             return False
         if self._action == "refresh":
             return True
+        # Keep all action buttons visible. Home Assistant renders unavailable
+        # entities as disabled instead of hiding them; availability below
+        # reflects whether this role currently has a usable lock/action.
         if not self.coordinator.enable_lock_actions:
             return False
         lock = self._lock
