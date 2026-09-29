@@ -1,57 +1,74 @@
 # Chaster for Home Assistant
 
-A Home Assistant custom integration for the Chaster Public API.
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/jonny5509/Chaster-ha)
+[![HACS](https://img.shields.io/badge/HACS-Custom%20Integration-41BDF5.svg)](https://hacs.xyz/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Monitor your Chaster lock, countdowns, tasks, and session information from Home Assistant.
+A Home Assistant custom integration for the **Chaster Public API**.
 
-## Features
+Chaster brings lock, session, task, countdown, conversation, and supported lock-control information into Home Assistant through a native Config Flow integration.
 
-- HACS-compatible custom integration
-- Home Assistant Config Flow setup
-- Developer/API token authentication
-- Wearer and keyholder support
-- Lock, session, and task sensors
-- Local countdown updates
-- Lock controls and time adjustments
-- Conversation and messaging support
-- Built-in Lovelace dashboard card
-- Home Assistant events for actions and API responses
+## ✨ Features
 
-## Requirements
+- 🔐 Developer/API token authentication
+- 🧩 Home Assistant Config Flow setup
+- 👤 Wearer and keyholder support
+- 🔒 Lock and session sensors
+- ⏱️ Local countdown updates
+- 📋 Task and task-point information
+- 💬 Conversation and messaging support
+- 🎛️ Lock controls and time adjustments
+- 🖥️ Built-in Lovelace dashboard card
+- ⚡ Home Assistant events for supported actions and API responses
+- 📦 HACS-compatible installation
 
-- Home Assistant
+## 📋 Requirements
+
+- Home Assistant with support for custom integrations
 - A Chaster account
 - A Chaster developer/API token
 - Network access to the Chaster API
 - [HACS](https://hacs.xyz/) — recommended
 
-## Installation
+## 🚀 Installation
 
 ### HACS
 
 1. Open **HACS → Integrations**.
-2. Search for **Chaster** and install it.
+2. Search for **Chaster** and select **Download**.
 3. Restart Home Assistant.
-4. Go to **Settings → Devices & services → Add Integration**.
+4. Open **Settings → Devices & services**.
+5. Select **Add Integration**.
+6. Search for **Chaster** and complete setup.
+
+If the integration is not yet listed in HACS, add this repository as a custom repository:
+
+`https://github.com/jonny5509/Chaster-ha`
+
+### Manual installation
+
+1. Download or clone this repository.
+2. Copy `custom_components/chaster` to your Home Assistant `config/custom_components/` directory.
+3. Restart Home Assistant.
+4. Open **Settings → Devices & services → Add Integration**.
 5. Search for **Chaster** and complete setup.
 
-If it is not listed, add `https://github.com/jonny5509/Chaster-ha` as a custom repository.
+## ⚙️ Configuration
 
-### Manual
+Configuration is performed through the Home Assistant UI.
 
-Copy `custom_components/chaster` into `config/custom_components/`, restart Home Assistant, then add **Chaster** from **Settings → Devices & services**.
+You will need your **Chaster developer/API token**. Depending on the options and permissions available to your account, the integration can expose role information, shared locks, messaging, lock actions, and other supported features.
 
-## Configuration
+### 🔑 Token security
 
-Setup is handled through the Home Assistant UI.
+Treat your API token like a password.
 
-You will need your **Chaster developer/API token**. Options include polling interval, role mode, keyholder features, shared locks, messaging, and lock actions.
+- Never publish it in Git repositories.
+- Do not include it in screenshots or support requests.
+- Avoid exposing it in logs or configuration backups shared publicly.
+- Rotate the token if you believe it has been compromised.
 
-### Token security
-
-Treat your API token like a password. Do not share it, commit it to Git, or include it in public screenshots, logs, or configuration files.
-
-## Entities
+## 📊 Entities
 
 ### Sensors
 
@@ -80,16 +97,13 @@ Treat your API token like a password. Do not share it, commit it to Git, or incl
 - Unlock
 - Emergency unlock
 - Archive
-- Freeze
-- Unfreeze
-- Add 1 day
-- Add 1 hour
-- Subtract 1 day
-- Subtract 1 hour
+- Freeze / Unfreeze
+- Add 1 day / Add 1 hour
+- Subtract 1 day / Subtract 1 hour
 
-Availability depends on the current session, role, lock state, options, and Chaster permissions.
+> Availability depends on the active session, role, lock state, configured options, and permissions granted by Chaster.
 
-## Services
+## 🛠️ Services
 
 | Service | Purpose |
 | --- | --- |
@@ -108,11 +122,13 @@ data:
   seconds: 3600
 ```
 
-## Countdown
+## ⏱️ Countdown behaviour
 
-**Time Locked** and **Time Remaining** update locally every second. This does not make an API request every second.
+**Time Locked** and **Time Remaining** update locally every second once the integration has received the required session data.
 
-## Dashboard Card
+This does **not** make an API request every second. API communication continues to use the integration's normal polling/update mechanism.
+
+## 🖥️ Lovelace dashboard card
 
 Use the built-in card with:
 
@@ -120,50 +136,68 @@ Use the built-in card with:
 type: custom:chaster-card
 ```
 
-It can display countdowns, task points, common lock controls, and 1-hour/1-day time adjustment controls.
+The card can display countdown information, task points, common lock controls, and time-adjustment controls.
 
-## API
+## 🌐 Chaster API
 
-The integration uses the Chaster Public API for authentication, locks, tasks, conversations, history, and supported lock actions.
+This integration uses the Chaster Public API for supported authentication, lock, task, conversation, history, and lock-action functionality.
 
-See the official documentation for endpoints, scopes, and permissions:
+For API details, scopes, and permissions, refer to the official Chaster documentation:
 
 - [Getting started](https://docs.chaster.app/api/basics/getting-started/)
 - [Developer tokens](https://docs.chaster.app/api/public-api/developer-token/)
 - [Public API endpoints](https://docs.chaster.app/api/public-api/endpoints/)
 
-## Troubleshooting
+## 🧰 Troubleshooting
 
 ### Authentication fails
 
-Check your developer token, required scopes, and Home Assistant's connection to the Chaster API.
+Verify the developer token, required scopes, and Home Assistant's network connection to the Chaster API.
 
 ### Entities are unavailable
 
-Some entities require an active session or specific role/lock information.
+Some entities require an active session, a specific role, or information that is not currently available from Chaster.
 
-### A button is unavailable
+### A button or service is unavailable
 
-Availability depends on the current lock state, role, options, and Chaster permissions.
+Availability can depend on the current lock state, role, configured options, and Chaster permissions.
 
 ### Countdown is not updating
 
-Restart Home Assistant and check the logs for `custom_components.chaster` errors.
+Restart Home Assistant and check the logs for errors from `custom_components.chaster`.
 
-## Development
+## 👩‍💻 Development
 
-The integration is located in `custom_components/chaster/`.
+Integration source code is located in `custom_components/chaster/`.
 
-Key files include `api.py`, `config_flow.py`, `coordinator.py`, `sensor.py`, `binary_sensor.py`, `button.py`, and `www/chaster-card.js`.
+Important components include:
 
-## Existing Installations
+- `api.py`
+- `config_flow.py`
+- `coordinator.py`
+- `sensor.py`
+- `binary_sensor.py`
+- `button.py`
+- `www/chaster-card.js`
 
-Update through HACS or replace the integration files, then restart Home Assistant. Reauthenticate or reconfigure if requested.
+Contributions and bug reports are welcome through GitHub issues and pull requests.
 
-## Repository
+## 🔄 Updating
 
-[GitHub repository](https://github.com/jonny5509/Chaster-ha)
+For HACS installations:
 
-## License
+1. Update **Chaster** from HACS.
+2. Restart Home Assistant.
+3. Reload the dashboard if the card does not immediately reflect the update.
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+Existing installations may require reauthentication or reconfiguration if the API credentials or configuration flow changes.
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## 🔗 Links
+
+- [Repository](https://github.com/jonny5509/Chaster-ha)
+- [Issues](https://github.com/jonny5509/Chaster-ha/issues)
+- [Chaster API documentation](https://docs.chaster.app/api/)
