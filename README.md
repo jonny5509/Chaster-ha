@@ -1,6 +1,6 @@
 # Chaster for Home Assistant
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/jonny5509/Chaster-ha)
+[![Version](https://img.shields.io/github/v/release/jonny5509/Chaster-ha?display_name=tag&sort=semver)](https://github.com/jonny5509/Chaster-ha/releases/latest)
 [![HACS](https://img.shields.io/badge/HACS-Custom%20Integration-41BDF5.svg)](https://hacs.xyz/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
