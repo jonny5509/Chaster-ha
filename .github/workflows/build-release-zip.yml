@@ -19,11 +19,9 @@ jobs:
 
       - name: Build HACS ZIP
         run: |
-          rm -rf build chaster.zip
-          mkdir -p build/chaster/custom_components
-          cp -r custom_components/chaster build/chaster/custom_components/
-          cd build
-          zip -r ../chaster.zip chaster
+          rm -f chaster.zip
+          cd custom_components/chaster
+          zip -r ../../chaster.zip .
 
       - name: Upload ZIP to release
         uses: softprops/action-gh-release@v3
