@@ -1,7 +1,9 @@
 {
   "domain": "chaster",
   "name": "Chaster",
-  "codeowners": ["@jonny5509"],
+  "codeowners": [
+    "@jonny5509"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/jonny5509/Chaster-ha",
@@ -9,5 +11,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/jonny5509/Chaster-ha/issues",
   "requirements": [],
-  "version": "1.1.0"
+  "version": "1.1.2"
 }
