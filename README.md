@@ -201,3 +201,6 @@ This project is licensed under the [MIT License](LICENSE).
 - [Repository](https://github.com/jonny5509/Chaster-ha)
 - [Issues](https://github.com/jonny5509/Chaster-ha/issues)
 - [Chaster API documentation](https://docs.chaster.app/api/)
+
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jonny5509)
