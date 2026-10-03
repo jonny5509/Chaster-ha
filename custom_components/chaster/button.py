@@ -43,8 +43,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
         "subtract_1_hour": "Subtract 1 hour",
     }
     for role in ("wearer", "keyholder"):
-        device = devices.async_get_device(
-            identifiers={(entry.domain, entry.entry_id, role)}
+        device = devices.async_get_device_by_identifier(
+            (entry.domain, entry.entry_id, role)
         )
         if device is None:
             device = devices.async_get_or_create(
@@ -171,8 +171,6 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
                 continue
             nested = item.get("lock") if isinstance(item.get("lock"), dict) else None
             if nested is not None:
-                # Keep wrapper fields too; Chaster responses can expose freeze
-                # state alongside the nested lock object.
                 lock = {**item, **nested}
             else:
                 lock = item
@@ -268,17 +266,11 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
             return False
         if self._action == "refresh":
             return True
-        # Keep all action buttons visible. Home Assistant renders unavailable
-        # entities as disabled instead of hiding them; availability below
-        # reflects whether this role currently has a usable lock/action.
         if not self.coordinator.enable_lock_actions:
             return False
         lock = self._lock
         if not lock or not self.coordinator.lock_id(lock):
             return False
-        # Normal Unlock is deliberately unavailable until the lock timer
-        # has expired. This is evaluated from the live lock detail on every
-        # coordinator refresh, so the button changes state when time runs out.
         if self._action == "unlock" and not self._timer_expired(lock):
             return False
         return self._mode_allows_action(lock)
@@ -326,35 +318,19 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
             await self.coordinator.api.emergency_unlock(lock_id)
         elif self._action == "archive":
             await self.coordinator.api.archive(lock_id, keyholder=self._role == "keyholder")
-
-            # Remove the archived lock from the coordinator immediately.
-            # The coordinator normally preserves missing locks between API
-            # refreshes, which would otherwise keep the Archive button
-            # available until another fresh API result replaces the old data.
             data = self.coordinator.data if isinstance(self.coordinator.data, dict) else {}
             if data:
                 locks = data.get("locks")
                 if isinstance(locks, list):
-                    data["locks"] = [
-                        item for item in locks
-                        if self.coordinator.lock_id(item) != lock_id
-                    ]
-
+                    data["locks"] = [item for item in locks if self.coordinator.lock_id(item) != lock_id]
                 current = data.get("current_lock")
-                if (
-                    isinstance(current, dict)
-                    and self.coordinator.lock_id(current) == lock_id
-                ):
+                if isinstance(current, dict) and self.coordinator.lock_id(current) == lock_id:
                     data["current_lock"] = None
-
                 keyholder = data.get("keyholder")
                 if isinstance(keyholder, dict):
                     for key in ("items", "locks", "results", "data"):
                         items = keyholder.get(key)
                         if isinstance(items, list):
-                            keyholder[key] = [
-                                item for item in items
-                                if self.coordinator.lock_id(item) != lock_id
-                            ]
+                            keyholder[key] = [item for item in items if self.coordinator.lock_id(item) != lock_id]
 
         await self.coordinator.async_request_refresh()
