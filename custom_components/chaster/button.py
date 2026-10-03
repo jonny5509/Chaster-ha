@@ -44,7 +44,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     }
     for role in ("wearer", "keyholder"):
         device = devices.async_get_device_by_identifier(
-            (entry.domain, entry.entry_id, role)
+            (entry.domain, entry.entry_id, role),
+            entry.entry_id,
         )
         if device is None:
             device = devices.async_get_or_create(
