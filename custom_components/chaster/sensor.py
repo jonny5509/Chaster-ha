@@ -1,3 +1,5 @@
+PARALLEL_UPDATES = 1
+
 """Home Assistant sensor platform entry point.
 
 Sensor implementations live in ``sensors.py`` so they are kept in one place
