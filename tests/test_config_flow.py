@@ -48,3 +48,36 @@ async def test_options_flow(hass) -> None:
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] == "form"
     assert result["step_id"] == "init"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"scan_interval": 120, "role_mode": "auto"},
+    )
+    assert result["type"] == "create_entry"
+    assert entry.options["scan_interval"] == 120
+
+
+async def test_reauth_flow(hass) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_TOKEN: "old-token"})
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.chaster.config_flow.ChasterApi.profile",
+        new=AsyncMock(return_value={"username": "test"}),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={
+                "source": config_entries.SOURCE_REAUTH,
+                "entry_id": entry.entry_id,
+            },
+            data={},
+        )
+        assert result["step_id"] == "reauth_confirm"
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_TOKEN: "new-token"},
+        )
+
+    assert result["type"] == "abort"
+    assert entry.data[CONF_TOKEN] == "new-token"
