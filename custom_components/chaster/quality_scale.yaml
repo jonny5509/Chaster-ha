@@ -6,9 +6,7 @@ action-setup: done
 appropriate-polling: done
 brands: done
 common-modules: done
-config-flow-test-coverage:
-  status: todo
-  comment: "Additional reauthentication and options-flow branches still need dedicated tests."
+config-flow-test-coverage: done
 config-flow: done
 dependency-transparency: done
 docs-actions: done
