@@ -18,4 +18,6 @@ jobs:
       - name: Install test dependencies
         run: pip install pytest pytest-asyncio pytest-homeassistant-custom-component
       - name: Run tests
+        env:
+          PYTHONPATH: .
         run: pytest -q
