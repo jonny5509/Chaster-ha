@@ -1,11 +1,9 @@
 {
   "domain": "chaster",
   "name": "Chaster",
-  "codeowners": [
-    "@jonny5509"
-  ],
+  "codeowners": ["@jonny5509"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["http"],
   "documentation": "https://github.com/jonny5509/Chaster-ha",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
