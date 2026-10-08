@@ -11,8 +11,9 @@ from custom_components.chaster.const import DOMAIN
 
 
 async def test_user_flow_success(hass) -> None:
-    with patch(
-        config_flow.ChasterApi.profile,
+    with patch.object(
+        config_flow.ChasterApi,
+        "profile",
         new=AsyncMock(return_value={"username": "test"}),
     ):
         result = await hass.config_entries.flow.async_init(
