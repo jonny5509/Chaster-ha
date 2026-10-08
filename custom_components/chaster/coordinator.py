@@ -23,10 +23,15 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.enable_shared = enable_shared
         self.enable_messaging = enable_messaging
         self.enable_lock_actions = enable_lock_actions
-        # Keep lock-action availability responsive so Unlock becomes
-        # available shortly after the timer expires.
-        refresh_interval = timedelta(seconds=min(interval, 10))
-        super().__init__(hass, logger=_LOGGER, name="Chaster", update_interval=refresh_interval)
+        # Respect the user-selected polling interval. Countdown entities update
+        # locally and do not require an API request every second.
+        refresh_interval = timedelta(seconds=interval)
+        super().__init__(
+            hass,
+            logger=_LOGGER,
+            name="Chaster",
+            update_interval=refresh_interval,
+        )
 
     @staticmethod
     def _dict_list(value: Any) -> list[dict[str, Any]]:
