@@ -6,12 +6,13 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_TOKEN
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.chaster import config_flow
 from custom_components.chaster.const import DOMAIN
 
 
 async def test_user_flow_success(hass) -> None:
     with patch(
-        "custom_components.chaster.config_flow.ChasterApi.profile",
+        config_flow.ChasterApi.profile,
         new=AsyncMock(return_value={"username": "test"}),
     ):
         result = await hass.config_entries.flow.async_init(
