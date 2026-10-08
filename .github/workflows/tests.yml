@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install test dependencies
-        run: pip install pytest pytest-asyncio pytest-homeassistant-custom-component
+        run: pip install 'pytest<9' pytest-asyncio pytest-homeassistant-custom-component
       - name: Run tests
         env:
           PYTHONPATH: .
