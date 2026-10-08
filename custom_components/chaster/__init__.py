@@ -7,7 +7,7 @@ from homeassistant.components import frontend
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
@@ -47,12 +47,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         for coordinator in _coordinators(hass):
             if any(coordinator.lock_id(item) == lock_id for item in coordinator.all_locks):
                 return coordinator.api, coordinator
-        raise ValueError(f"Chaster lock {lock_id} is not known to this Home Assistant instance")
+        raise HomeAssistantError(f"Chaster lock {lock_id} is not known to this Home Assistant instance")
 
     async def api_request(call: ServiceCall) -> None:
         coordinators = _coordinators(hass)
         if not coordinators:
-            raise ValueError("No Chaster account is configured")
+            raise HomeAssistantError("No Chaster account is configured")
         result = await coordinators[0].api.request(
             call.data["method"],
             call.data["path"],
@@ -69,7 +69,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async def lock_action(call: ServiceCall) -> None:
         api, coordinator = await _api_for_lock(call.data["lock_id"])
         if not coordinator.enable_lock_actions:
-            raise ValueError("Lock actions are disabled in integration options")
+            raise HomeAssistantError("Lock actions are disabled in integration options")
         path = call.data["path"].format(lock_id=call.data["lock_id"])
         result = await api.request(call.data.get("method", "POST"), path, json=call.data.get("body", {}))
         hass.bus.async_fire(
@@ -249,4 +249,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a Chaster config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     hass.data[DOMAIN].pop(entry.entry_id, None)
+    if unload_ok and not _coordinators(hass):
+        for service in ("api_request", "lock_action", "add_time", "remove_time", "send_message"):
+            if hass.services.has_service(DOMAIN, service):
+                hass.services.async_remove(DOMAIN, service)
     return unload_ok
