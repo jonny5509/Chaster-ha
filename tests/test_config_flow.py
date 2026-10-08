@@ -30,8 +30,9 @@ async def test_user_flow_success(hass) -> None:
 async def test_user_flow_rejected_token(hass) -> None:
     from custom_components.chaster.api import ChasterApiError
 
-    with patch(
-        "custom_components.chaster.config_flow.ChasterApi.profile",
+    with patch.object(
+        config_flow.ChasterApi,
+        "profile",
         side_effect=ChasterApiError("bad token"),
     ):
         result = await hass.config_entries.flow.async_init(
@@ -63,8 +64,9 @@ async def test_reauth_flow(hass) -> None:
     entry = MockConfigEntry(domain=DOMAIN, data={CONF_TOKEN: "old-token"})
     entry.add_to_hass(hass)
 
-    with patch(
-        "custom_components.chaster.config_flow.ChasterApi.profile",
+    with patch.object(
+        config_flow.ChasterApi,
+        "profile",
         new=AsyncMock(return_value={"username": "test"}),
     ):
         result = await hass.config_entries.flow.async_init(
