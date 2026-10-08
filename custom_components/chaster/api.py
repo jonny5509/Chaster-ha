@@ -20,8 +20,8 @@ class ChasterApi:
 
     async def request(self, method: str, path: str, **kwargs: Any) -> Any:
         """Make an authenticated request using the developer token."""
-        if not path.startswith("/"):
-            raise ChasterApiError("Chaster API paths must start with '/'")
+        if not path.startswith("/") or path.startswith("//"):
+            raise ChasterApiError("Chaster API paths must start with a single '/'")
 
         headers = dict(kwargs.pop("headers", {}))
         headers.setdefault("Accept", "application/json")
@@ -29,14 +29,21 @@ class ChasterApi:
         url = f"{API_BASE}{path}"
 
         try:
-            async with self._session.request(method.upper(), url, headers=headers, **kwargs) as response:
+            async with self._session.request(
+                method.upper(), url, headers=headers, **kwargs
+            ) as response:
                 if response.status >= 400:
                     raise ChasterApiError(
                         f"HTTP {response.status}: {(await response.text())[:1000]}"
                     )
                 if response.status == 204:
                     return None
-                return await response.json(content_type=None)
+                try:
+                    return await response.json(content_type=None)
+                except (TypeError, ValueError) as err:
+                    raise ChasterApiError(
+                        f"Chaster returned invalid JSON for {method.upper()} {path}"
+                    ) from err
         except ClientError as err:
             raise ChasterApiError(str(err)) from err
 
@@ -83,7 +90,9 @@ class ChasterApi:
         return await self.request("GET", f"/conversations/{conversation_id}")
 
     async def send_message(self, conversation_id: str, payload: dict[str, Any]) -> Any:
-        return await self.request("POST", f"/conversations/{conversation_id}", json=payload)
+        return await self.request(
+            "POST", f"/conversations/{conversation_id}", json=payload
+        )
 
     async def create_conversation(self, payload: dict[str, Any]) -> Any:
         return await self.request("POST", "/conversations", json=payload)
@@ -113,11 +122,17 @@ class ChasterApi:
             if not value:
                 continue
             if isinstance(value, (int, float)):
-                end_time = float(value) / 1000 if float(value) > 10000000000 else float(value)
+                end_time = (
+                    float(value) / 1000
+                    if float(value) > 10000000000
+                    else float(value)
+                )
                 break
             if isinstance(value, str):
                 try:
-                    parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+                    parsed = datetime.fromisoformat(
+                        value.strip().replace("Z", "+00:00")
+                    )
                     if parsed.tzinfo is None:
                         parsed = parsed.replace(tzinfo=timezone.utc)
                     end_time = parsed.timestamp()
@@ -149,7 +164,9 @@ class ChasterApi:
         return await self.request("POST", f"/locks/{lock_id}/settings", json=payload)
 
     async def bondage_config(self, lock_id: str, payload: dict[str, Any]) -> Any:
-        return await self.request("PATCH", f"/locks/{lock_id}/bondage-config", json=payload)
+        return await self.request(
+            "PATCH", f"/locks/{lock_id}/bondage-config", json=payload
+        )
 
     async def permission_definitions(self) -> Any:
         return await self.request("GET", "/permissions/definitions")
