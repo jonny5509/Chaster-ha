@@ -81,7 +81,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async def add_or_remove_time(call: ServiceCall) -> None:
         api, coordinator = await _api_for_lock(call.data["lock_id"])
         if not coordinator.enable_lock_actions:
-            raise ValueError("Lock actions are disabled in integration options")
+            raise HomeAssistantError("Lock actions are disabled in integration options")
         seconds = int(call.data["seconds"])
         result = await api.update_time(
             call.data["lock_id"], seconds if call.service == "add_time" else -seconds
@@ -95,7 +95,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async def send_message(call: ServiceCall) -> None:
         coordinators = _coordinators(hass)
         if not coordinators:
-            raise ValueError("No Chaster account is configured")
+            raise HomeAssistantError("No Chaster account is configured")
         result = await coordinators[0].api.request(
             "POST", call.data.get("path", "/conversations"), json=call.data["body"]
         )
