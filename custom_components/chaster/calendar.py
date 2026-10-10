@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import math
 from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -55,7 +56,9 @@ def _first_number(lock: dict[str, Any], keys: tuple[str, ...]) -> float | None:
             value = source.get(key)
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 continue
-            if value >= 0:
+            # NaN and infinities are valid Python floats but invalid timer
+            # durations. Reject them before they reach timedelta arithmetic.
+            if math.isfinite(value) and value >= 0:
                 return float(value)
     return None
 
@@ -150,7 +153,12 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                 else:
                     updated_at = updated_at.astimezone(timezone.utc)
                 if remaining is not None:
-                    end = updated_at + timedelta(seconds=remaining)
+                    try:
+                        end = updated_at + timedelta(seconds=remaining)
+                    except (OverflowError, ValueError):
+                        # An implausibly large API value must not break the
+                        # whole calendar entity; retain the absolute end date.
+                        pass
 
             # Reaching the expected unlock time does not necessarily mean the
             # lock ended. Active state is authoritative. Keep an overdue active
