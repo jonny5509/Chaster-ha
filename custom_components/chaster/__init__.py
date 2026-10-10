@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import voluptuous as vol
 from pathlib import Path
 
@@ -29,6 +30,46 @@ from .coordinator import ChasterCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
+# Keep the generic service read-only. Mutations should use the narrowly scoped
+# lock_action/add_time/remove_time/send_message services instead.
+_READ_ONLY_PATHS = {
+    "/auth/profile",
+    "/locks",
+    "/shared-locks",
+    "/conversations",
+    "/permissions/definitions",
+}
+_ID = r"[A-Za-z0-9_-]+"
+_READ_ONLY_PATH_PATTERNS = (
+    re.compile(rf"/locks/{_ID}"),
+    re.compile(rf"/conversations/{_ID}"),
+    re.compile(rf"/keyholder/notes/lock/{_ID}"),
+)
+_LOCK_ACTION_PATHS = {
+    "/locks/{lock_id}/freeze",
+    "/locks/{lock_id}/archive",
+    "/locks/{lock_id}/archive/keyholder",
+    "/locks/{lock_id}/settings",
+    "/locks/{lock_id}/bondage-config",
+}
+_LOCK_EXTENSION_ACTION = re.compile(rf"/locks/{_ID}/extensions/{_ID}/action")
+_CONVERSATION_PATH = re.compile(rf"/conversations(?:/{_ID})?")
+
+
+def _validate_api_path(path: str, *, allow_query: bool = False) -> str:
+    """Reject paths that could escape the intended Chaster API endpoint."""
+    if (
+        not path.startswith("/")
+        or path.startswith("//")
+        or "\\" in path
+        or "?" in path
+        or "#" in path
+        or any(part in {".", ".."} for part in path.split("/"))
+        or re.search(r"%2e|%2f|%5c", path, re.IGNORECASE)
+    ):
+        raise HomeAssistantError("Invalid Chaster API path")
+    return path
+
 
 def _coordinators(hass: HomeAssistant) -> list[ChasterCoordinator]:
     """Return configured Chaster coordinators."""
@@ -53,28 +94,43 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         coordinators = _coordinators(hass)
         if not coordinators:
             raise HomeAssistantError("No Chaster account is configured")
+        path = _validate_api_path(call.data["path"])
+        if call.data["method"] != "GET" or not (
+            path in _READ_ONLY_PATHS
+            or any(pattern.fullmatch(path) for pattern in _READ_ONLY_PATH_PATTERNS)
+        ):
+            raise HomeAssistantError(
+                "api_request is read-only and only supports documented account, lock, "
+                "conversation, and permission lookup paths"
+            )
         result = await coordinators[0].api.request(
-            call.data["method"],
-            call.data["path"],
-            params=call.data.get("params"),
-            json=call.data.get("body"),
+            "GET", path, params=call.data.get("params")
         )
         hass.bus.async_fire(
             f"{DOMAIN}_api_response",
-            {"method": call.data["method"], "path": call.data["path"], "result": result},
+            {"method": "GET", "path": path, "result": result},
         )
         for coordinator in coordinators:
             await coordinator.async_request_refresh()
 
     async def lock_action(call: ServiceCall) -> None:
-        api, coordinator = await _api_for_lock(call.data["lock_id"])
+        lock_id = call.data["lock_id"]
+        if not re.fullmatch(_ID, lock_id):
+            raise HomeAssistantError("Invalid Chaster lock ID")
+        api, coordinator = await _api_for_lock(lock_id)
         if not coordinator.enable_lock_actions:
             raise HomeAssistantError("Lock actions are disabled in integration options")
-        path = call.data["path"].format(lock_id=call.data["lock_id"])
+        template = call.data["path"]
+        if template not in _LOCK_ACTION_PATHS and not _LOCK_EXTENSION_ACTION.fullmatch(
+            template.replace("{lock_id}", lock_id)
+        ):
+            raise HomeAssistantError("Unsupported Chaster lock action path")
+        path = template.format(lock_id=lock_id)
+        _validate_api_path(path)
         result = await api.request(call.data.get("method", "POST"), path, json=call.data.get("body", {}))
         hass.bus.async_fire(
             f"{DOMAIN}_action",
-            {"lock_id": call.data["lock_id"], "path": path, "result": result},
+            {"lock_id": lock_id, "path": path, "result": result},
         )
         await coordinator.async_request_refresh()
 
@@ -96,9 +152,13 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         coordinators = _coordinators(hass)
         if not coordinators:
             raise HomeAssistantError("No Chaster account is configured")
-        result = await coordinators[0].api.request(
-            "POST", call.data.get("path", "/conversations"), json=call.data["body"]
-        )
+        path = _validate_api_path(call.data.get("path", "/conversations"))
+        if not _CONVERSATION_PATH.fullmatch(path):
+            raise HomeAssistantError("send_message only supports Chaster conversation endpoints")
+        coordinator = coordinators[0]
+        if not coordinator.enable_messaging:
+            raise HomeAssistantError("Messaging is disabled in integration options")
+        result = await coordinator.api.request("POST", path, json=call.data["body"])
         hass.bus.async_fire(f"{DOMAIN}_message", {"result": result})
 
     hass.services.async_register(
@@ -107,10 +167,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         api_request,
         schema=vol.Schema(
             {
-                vol.Required("method"): vol.In(["GET", "POST", "PUT", "PATCH", "DELETE"]),
+                vol.Required("method"): vol.In(["GET"]),
                 vol.Required("path"): str,
                 vol.Optional("params"): dict,
-                vol.Optional("body"): dict,
             }
         ),
     )
@@ -150,34 +209,16 @@ async def _remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> No
     prefix = f"{entry.entry_id}_"
 
     allowed_suffixes = {
-        "wearer_username",
-        "my_lock_keyholder_username",
-        "wearer_lock_title",
-        "keyholder_lock_title",
-        "my_lock_time_locked",
-        "keyholder_time_locked",
-        "my_lock_time_remaining",
-        "keyholder_time_remaining",
-        "my_lock_max_time_remaining",
-        "keyholder_max_time_remaining",
-        "my_lock_session_role",
-        "keyholder_session_role",
-        "my_lock_task_points",
-        "keyholder_task_points",
-        "my_lock_task_points_required",
-        "keyholder_task_points_required",
-        "my_lock_task_points_remaining",
-        "keyholder_task_points_remaining",
-        "keyholder_device_wearer_username",
-        "wearer_locked",
-        "keyholder_locked",
-        "wearer_ready_to_unlock",
-        "keyholder_ready_to_unlock",
-        "wearer_frozen",
-        "keyholder_frozen",
-        "wearer_task_assigned",
-        "keyholder_task_assigned",
-        "sessions_calendar",
+        "wearer_username", "my_lock_keyholder_username", "wearer_lock_title",
+        "keyholder_lock_title", "my_lock_time_locked", "keyholder_time_locked",
+        "my_lock_time_remaining", "keyholder_time_remaining", "my_lock_max_time_remaining",
+        "keyholder_max_time_remaining", "my_lock_session_role", "keyholder_session_role",
+        "my_lock_task_points", "keyholder_task_points", "my_lock_task_points_required",
+        "keyholder_task_points_required", "my_lock_task_points_remaining",
+        "keyholder_task_points_remaining", "keyholder_device_wearer_username",
+        "wearer_locked", "keyholder_locked", "wearer_ready_to_unlock",
+        "keyholder_ready_to_unlock", "wearer_frozen", "keyholder_frozen",
+        "wearer_task_assigned", "keyholder_task_assigned", "sessions_calendar",
     }
 
     for entity in list(registry.entities.values()):
@@ -196,11 +237,8 @@ async def _remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> No
         if any(
             marker in original_name or marker in name
             for marker in (
-                "obedience connected",
-                "current lock history",
-                "keyholder lock",
-                "my lock -",
-                "shared lock -",
+                "obedience connected", "current lock history", "keyholder lock",
+                "my lock -", "shared lock -",
             )
         ):
             registry.async_remove(entity.entity_id)
