@@ -262,8 +262,25 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 or keyholder.get("results")
                 or keyholder.get("data")
             )
+            # Preserve keyholder history, but mark previously active records
+            # ended when a successful API response no longer contains them.
+            # This gives completion notifications the same reliable transition
+            # that wearer locks already receive above.
+            fresh_keyholder_ids = {
+                self.lock_id(item.get("lock") if isinstance(item.get("lock"), dict) else item)
+                for item in keyholder_items
+            }
             merged_keyholder = {}
-            for item in archived_keyholder + keyholder_items:
+            for item in archived_keyholder:
+                lock_item = item.get("lock") if isinstance(item.get("lock"), dict) else item
+                item_id = self.lock_id(lock_item)
+                if not item_id:
+                    continue
+                if keyholder_available and item_id not in fresh_keyholder_ids and self.is_active(lock_item):
+                    ended_lock = {**lock_item, "status": "ended"}
+                    item = {**item, "lock": ended_lock} if isinstance(item.get("lock"), dict) else ended_lock
+                merged_keyholder[item_id] = item
+            for item in keyholder_items:
                 lock_item = item.get("lock") if isinstance(item.get("lock"), dict) else item
                 item_id = self.lock_id(lock_item)
                 if item_id:
