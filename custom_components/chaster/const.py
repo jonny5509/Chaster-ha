@@ -14,5 +14,5 @@ ROLE_AUTO = "auto"
 ROLE_WEARER = "wearer"
 ROLE_KEYHOLDER = "keyholder"
 ROLE_BOTH = "both"
-PLATFORMS = ["sensor", "button", "binary_sensor"]
+PLATFORMS = ["sensor", "button", "binary_sensor", "calendar"]
 ATTR_LOCK_ID = "lock_id"
