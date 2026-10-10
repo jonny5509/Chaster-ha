@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-import importlib
 import sys
 import types
 import unittest
@@ -17,7 +17,9 @@ def _module(name: str) -> types.ModuleType:
     return module
 
 
-# Import the coordinator without requiring a full Home Assistant installation.
+# Load the real coordinator under a private module name. Other lightweight
+# tests install a stub at custom_components.chaster.coordinator, so importing
+# that shared name would accidentally test the stub instead of production code.
 ha = _module("homeassistant")
 ha.__path__ = getattr(ha, "__path__", [])  # type: ignore[attr-defined]
 core = _module("homeassistant.core")
@@ -25,7 +27,7 @@ core.HomeAssistant = getattr(core, "HomeAssistant", type("HomeAssistant", (), {}
 helpers = _module("homeassistant.helpers")
 helpers.__path__ = getattr(helpers, "__path__", [])  # type: ignore[attr-defined]
 storage = _module("homeassistant.helpers.storage")
-storage.Store = getattr(storage, "Store", type("Store", (), {}))  # type: ignore[attr-defined]
+storage.Store = type("Store", (), {})  # type: ignore[attr-defined]
 update_coordinator = _module("homeassistant.helpers.update_coordinator")
 
 
@@ -33,23 +35,23 @@ class _DataUpdateCoordinator:
     def __init__(self, *args, **kwargs):
         self.data = None
 
+    @classmethod
+    def __class_getitem__(cls, item):
+        return cls
 
-update_coordinator.DataUpdateCoordinator = getattr(
-    update_coordinator, "DataUpdateCoordinator", _DataUpdateCoordinator
-)  # type: ignore[attr-defined]
-update_coordinator.UpdateFailed = getattr(
-    update_coordinator, "UpdateFailed", type("UpdateFailed", (Exception,), {})
-)  # type: ignore[attr-defined]
+
+update_coordinator.DataUpdateCoordinator = _DataUpdateCoordinator  # type: ignore[attr-defined]
+update_coordinator.UpdateFailed = type("UpdateFailed", (Exception,), {})  # type: ignore[attr-defined]
 
 package_name = "custom_components.chaster"
 package = sys.modules.get(package_name)
 if package is None:
     package = types.ModuleType(package_name)
     sys.modules[package_name] = package
-package_path = str(Path(__file__).resolve().parents[1] / "custom_components" / "chaster")
-package.__path__ = [package_path]  # type: ignore[attr-defined]
+package_path = Path(__file__).resolve().parents[1] / "custom_components" / "chaster"
+package.__path__ = [str(package_path)]  # type: ignore[attr-defined]
 
-const = importlib.import_module(f"{package_name}.const")
+const = _module(f"{package_name}.const")
 for name, value in {
     "API_BASE": "https://api.example.test",
     "DEFAULT_SCAN_INTERVAL": 60,
@@ -61,7 +63,13 @@ for name, value in {
     if not hasattr(const, name):
         setattr(const, name, value)
 
-coordinator_module = importlib.import_module(f"{package_name}.coordinator")
+module_name = f"{package_name}._coordinator_under_test"
+spec = spec_from_file_location(module_name, package_path / "coordinator.py")
+if spec is None or spec.loader is None:
+    raise RuntimeError("Unable to load coordinator module for regression tests")
+coordinator_module = module_from_spec(spec)
+sys.modules[module_name] = coordinator_module
+spec.loader.exec_module(coordinator_module)
 ChasterCoordinator = coordinator_module.ChasterCoordinator
 
 
