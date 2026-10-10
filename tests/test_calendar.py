@@ -236,7 +236,7 @@ class CalendarTimerDateTests(unittest.TestCase):
             "title": "Keyholder session",
         }
         data = {
-            "locks": [lock],
+            "locks": [],
             "current_lock": lock,
             "keyholder": {"items": [{"id": "relationship-1", "lock": lock}]},
         }
