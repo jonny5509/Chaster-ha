@@ -136,7 +136,7 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                 summary=title,
                 start=start,
                 end=end,
-                description=f"{role_label} session\\nStatus: {status}\\nLock ID: {lock_id}",
+                description=f"{role_label} session\nStatus: {status}\nLock ID: {lock_id}",
                 uid=f"chaster-{self.role}-{lock_id}",
             )
 
