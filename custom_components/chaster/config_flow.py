@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, override
+from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -95,7 +95,6 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
-    @override
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
         """Return Chaster's role and feature settings flow."""
         return ChasterOptionsFlow()
