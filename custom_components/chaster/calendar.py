@@ -153,6 +153,13 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                     updated_at = updated_at.astimezone(timezone.utc)
                 if remaining is not None:
                     end = updated_at + timedelta(seconds=remaining)
+                # Reaching the expected unlock time does not necessarily mean
+                # the lock has ended. Chaster's active lock state is authoritative:
+                # keep the calendar event alive until a refresh reports it inactive.
+                if end is not None and end <= updated_at and self.coordinator.is_active(lock):
+                    interval = getattr(self.coordinator, "update_interval", None)
+                    extension = interval.total_seconds() if isinstance(interval, timedelta) else 60
+                    end = updated_at + timedelta(seconds=max(60, extension))
             # Keep the explicit absolute end as fallback when live timing is
             # unavailable or hidden; never fabricate an end date.
             if start is None or end is None or end <= start:
