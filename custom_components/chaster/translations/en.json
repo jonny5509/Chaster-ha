@@ -7,7 +7,8 @@
     },
     "error": {
       "invalid_token": "Enter a developer token.",
-      "cannot_connect": "Unable to connect to Chaster or the token was rejected."
+      "cannot_connect": "Unable to connect to the Chaster API. Check your network connection and try again.",
+      "invalid_auth": "The developer token is invalid, expired, or lacks the required permissions."
     },
     "step": {
       "user": {
