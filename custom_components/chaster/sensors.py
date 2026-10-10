@@ -300,7 +300,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         "Wearer Username", "Keyholder Username", "Lock Title", "Lock Type",
         "Start Date", "End Date", "Timer Visible", "Time Locked",
         "Time Remaining", "Session Role", "Task Points",
-        "Task Points Required", "Task Points Remaining",
+        "Task Points Required", "Task Points Remaining", "API Requests Remaining",
     }
     for entity in list(registry.entities.values()):
         if entity.config_entry_id == entry.entry_id and entity.domain == "sensor":
@@ -379,7 +379,41 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ChasterTaskPointsRequiredSensor(coordinator, "keyholder"),
         ChasterTaskPointsRemainingSensor(coordinator, "keyholder"),
     ]
+    entities.append(ChasterApiRateLimitSensor(coordinator))
     async_add_entities(entities)
+
+
+class ChasterApiRateLimitSensor(ChasterEntity, SensorEntity):
+    """Expose the remaining API request budget reported by Chaster."""
+
+    _attr_icon = "mdi:api"
+    _attr_entity_registry_enabled_default = True
+    _attr_native_unit_of_measurement = "requests"
+
+    def __init__(self, coordinator):
+        super().__init__(coordinator, "wearer")
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_api_requests_remaining"
+        self._attr_name = "API Requests Remaining"
+
+    @property
+    def native_value(self):
+        return self.coordinator.api.rate_limit.get("remaining")
+
+    @property
+    def extra_state_attributes(self):
+        from time import time
+
+        rate_limit = self.coordinator.api.rate_limit
+        cooldown_until = self.coordinator.api.rate_limited_until
+        return {
+            "limit": rate_limit.get("limit"),
+            "reset": rate_limit.get("reset"),
+            "cooldown_remaining_seconds": (
+                max(0, int(cooldown_until - time()))
+                if cooldown_until is not None
+                else 0
+            ),
+        }
 
 
 class ChasterUsernameSensor(ChasterEntity, SensorEntity):
