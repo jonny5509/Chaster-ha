@@ -98,14 +98,11 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @override
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
         """Return Chaster's role and feature settings flow."""
-        return ChasterOptionsFlow(config_entry)
+        return ChasterOptionsFlow()
 
 
 class ChasterOptionsFlow(config_entries.OptionsFlow):
     """Configure role-specific and optional Chaster features."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Handle integration options."""
