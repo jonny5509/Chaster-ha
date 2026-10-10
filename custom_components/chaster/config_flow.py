@@ -34,8 +34,6 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Ask for and validate a Chaster developer token."""
-        if self._async_current_entries():
-            return self.async_abort(reason="already_configured")
         return await self._async_token_form(user_input, reauth_entry=None)
 
     async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
@@ -63,7 +61,7 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 session = aiohttp_client.async_get_clientsession(self.hass)
                 try:
-                    await ChasterApi(session, token=token).profile()
+                    profile = await ChasterApi(session, token=token).profile()
                 except ChasterApiError:
                     errors["base"] = "cannot_connect"
                 else:
@@ -73,7 +71,20 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         )
                         await self.hass.config_entries.async_reload(reauth_entry.entry_id)
                         return self.async_abort(reason="reauth_successful")
-                    return self.async_create_entry(title="Chaster - jonny5509", data={CONF_TOKEN: token})
+                    if not isinstance(profile, dict):
+                        errors["base"] = "cannot_connect"
+                    else:
+                        account_id = profile.get("id") or profile.get("_id") or profile.get("username")
+                        if not account_id:
+                            errors["base"] = "cannot_connect"
+                        else:
+                            await self.async_set_unique_id(str(account_id).casefold())
+                            self._abort_if_unique_id_configured()
+                            username = profile.get("username") or str(account_id)
+                            return self.async_create_entry(
+                                title=f"Chaster - {username}",
+                                data={CONF_TOKEN: token},
+                            )
 
         step_id = "reauth_confirm" if reauth_entry is not None else "user"
         return self.async_show_form(
