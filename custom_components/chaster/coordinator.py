@@ -27,6 +27,7 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # locally every second; polling the API more frequently than requested
         # can quickly consume Chaster's shared request budget.
         refresh_interval = timedelta(seconds=max(30, interval))
+        self._base_update_interval = refresh_interval
         super().__init__(hass, logger=_LOGGER, name="Chaster", update_interval=refresh_interval)
 
     @staticmethod
@@ -209,15 +210,21 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Refresh active keyholder lock details so extension data is
             # available on the Keyholder device as well as the My lock device.
             refreshed_keyholder_items: list[dict[str, Any]] = []
+            # Avoid one detail request per lock on large keyholder accounts.
+            # The search response still exposes all locks; details are refreshed
+            # for at most ten active locks on each polling cycle.
+            detail_refreshes = 0
+            max_detail_refreshes = 10
             for item in keyholder_items:
                 lock_item = item.get("lock") if isinstance(item.get("lock"), dict) else item
                 lock_item_id = self.lock_id(lock_item)
                 if not isinstance(lock_item, dict) or not lock_item_id:
                     refreshed_keyholder_items.append(item)
                     continue
-                if self.is_active(lock_item):
+                if self.is_active(lock_item) and detail_refreshes < max_detail_refreshes:
                     try:
                         detail = await self.api.lock(lock_item_id)
+                        detail_refreshes += 1
                         if isinstance(detail, dict) and self.lock_id(detail) == lock_item_id:
                             if isinstance(item.get("lock"), dict):
                                 item = {**item, "lock": detail}
@@ -352,6 +359,40 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             self.hass.bus.async_fire("chaster_lock_time_changed", event_data)
                         if any(previous_state[field] != current_state[field] for field in ("status", "end_date", "frozen")):
                             self.hass.bus.async_fire("chaster_lock_updated", event_data)
+            # If any request in this refresh hit a rate limit, back off the next
+            # scheduled poll until the server's requested cooldown has elapsed.
+            # Never automatically replay API requests: POST actions may mutate state.
+            from time import time
+            cooldown_until = self.api.rate_limited_until
+            if cooldown_until is not None and cooldown_until > time():
+                cooldown = max(
+                    self._base_update_interval.total_seconds(),
+                    cooldown_until - time() + 2,
+                )
+                self.update_interval = timedelta(seconds=cooldown)
+            else:
+                self.update_interval = self._base_update_interval
             return result
         except ChasterApiError as err:
+            self.hass.bus.async_fire(
+                "chaster_api_error",
+                {
+                    "status_code": err.status_code,
+                    "retry_after": err.retry_after,
+                    "rate_limited": err.status_code == 429,
+                },
+            )
+            if err.status_code == 429:
+                self.hass.bus.async_fire(
+                    "chaster_api_rate_limited",
+                    {"retry_after": err.retry_after},
+                )
+                from time import time
+                cooldown = err.retry_after if err.retry_after is not None else 60
+                self.update_interval = timedelta(
+                    seconds=max(
+                        self._base_update_interval.total_seconds(),
+                        cooldown + 2,
+                    )
+                )
             raise UpdateFailed(str(err)) from err
