@@ -55,22 +55,35 @@ def _duration_seconds(value: Any) -> int | None:
 
 
 def _date_seconds(value: Any) -> int | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
+    """Convert an ISO date or Unix timestamp to remaining seconds."""
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if isinstance(value, datetime):
+            parsed = value
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            # Chaster integrations and wrappers may expose Unix seconds or milliseconds.
+            timestamp = value / 1000 if abs(value) >= 100_000_000_000 else value
+            parsed = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        elif isinstance(value, str) and value.strip():
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        else:
+            return None
+
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=timezone.utc)
         return max(0, int((parsed - datetime.now(timezone.utc)).total_seconds()))
-    except (TypeError, ValueError, OverflowError):
+    except (TypeError, ValueError, OverflowError, OSError):
         return None
 
 
 def _remaining(item: Any) -> int | None:
-    """Return the documented lock endDate countdown in seconds."""
+    """Return the lock countdown using the available end-date field."""
     if not isinstance(item, dict):
         return None
-    return _date_seconds(item.get("endDate"))
+    for key in ("endDate", "endAt", "unlockDate", "unlockAt", "maxLimitDate"):
+        seconds = _date_seconds(item.get(key))
+        if seconds is not None:
+            return seconds
+    return None
 
 
 def _format_duration(seconds: Any) -> str | None:
