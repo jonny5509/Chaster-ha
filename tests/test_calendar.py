@@ -60,6 +60,7 @@ class _Coordinator:
     def __init__(self, data):
         self.data = data
         self.current_lock = data.get("current_lock")
+        self.last_update_success_time = data.get("last_update_success_time")
 
     @staticmethod
     def _dict_list(value):
@@ -126,6 +127,27 @@ class CalendarTimerDateTests(unittest.TestCase):
 
         self.assertEqual(first_event.end, datetime(2030, 1, 2, tzinfo=timezone.utc))
         self.assertEqual(second_event.end, datetime(2030, 1, 4, tzinfo=timezone.utc))
+
+
+    def test_event_end_uses_remaining_time_anchored_to_refresh(self):
+        refreshed_at = datetime(2030, 1, 1, 12, 0, tzinfo=timezone.utc)
+        lock = {
+            "id": "lock-live",
+            "startDate": "2030-01-01T10:00:00Z",
+            "endDate": "2030-01-01T12:30:00Z",
+            "timer": {"timeRemainingSeconds": 3600},
+            "status": "locked",
+        }
+        coordinator = _Coordinator({
+            "locks": [lock],
+            "last_update_success_time": refreshed_at,
+        })
+        calendar = object.__new__(ChasterSessionCalendar)
+        calendar.coordinator = coordinator
+        calendar.role = "wearer"
+
+        event = calendar._events()[0]
+        self.assertEqual(event.end, datetime(2030, 1, 1, 13, 0, tzinfo=timezone.utc))
 
 
 if __name__ == "__main__":
