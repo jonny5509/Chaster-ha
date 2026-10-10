@@ -288,7 +288,7 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             history = history_by_role[ROLE_WEARER] or history_by_role[ROLE_KEYHOLDER]
             detected_roles = ([ROLE_WEARER] if wearer_available else []) + ([ROLE_KEYHOLDER] if keyholder_available else [])
-            return {
+            result = {
                 "profile": profile,
                 "locks": locks,
                 "current_lock": current,
@@ -301,5 +301,47 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "detected_roles": detected_roles,
                 "detected_role": ROLE_BOTH if len(detected_roles) == 2 else detected_roles[0] if detected_roles else "unknown",
             }
+            # Compare snapshots only after startup so existing locks do not fire
+            # false "new lock" events on the first successful refresh.
+            if old_data:
+                def event_locks(snapshot):
+                    found = {}
+                    wearer_items = self._dict_list(snapshot.get("locks"))
+                    kh = snapshot.get("keyholder", {})
+                    kh_items = self._dict_list(kh.get("items") or kh.get("locks") or kh.get("results") or kh.get("data")) if isinstance(kh, dict) else []
+                    for role, items in ((ROLE_WEARER, wearer_items), (ROLE_KEYHOLDER, kh_items)):
+                        for item in items:
+                            lock = item.get("lock") if isinstance(item.get("lock"), dict) else item
+                            lock_id = self.lock_id(lock)
+                            if lock_id:
+                                found[(role, lock_id)] = {
+                                    "lock_id": lock_id,
+                                    "role": role,
+                                    "status": str(lock.get("status", lock.get("state", "unknown"))),
+                                    "active": self.is_active(lock),
+                                    "end_date": lock.get("endDate") or lock.get("endAt") or lock.get("unlockDate") or lock.get("unlockAt"),
+                                    "frozen": bool(lock.get("frozen", lock.get("isFrozen", False))),
+                                }
+                    return found
+
+                previous_locks = event_locks(old_data)
+                current_locks = event_locks(result)
+                for key, current_state in current_locks.items():
+                    previous_state = previous_locks.get(key)
+                    if previous_state is None:
+                        self.hass.bus.async_fire("chaster_lock_detected", current_state)
+                        if current_state["active"]:
+                            self.hass.bus.async_fire("chaster_lock_started", current_state)
+                    else:
+                        if previous_state["active"] and not current_state["active"]:
+                            self.hass.bus.async_fire("chaster_lock_ended", {**current_state, "previous_status": previous_state["status"]})
+                        if any(previous_state[field] != current_state[field] for field in ("status", "end_date", "frozen")):
+                            self.hass.bus.async_fire("chaster_lock_updated", {
+                                **current_state,
+                                "previous_status": previous_state["status"],
+                                "previous_end_date": previous_state["end_date"],
+                                "previous_frozen": previous_state["frozen"],
+                            })
+            return result
         except ChasterApiError as err:
             raise UpdateFailed(str(err)) from err

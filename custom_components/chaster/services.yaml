@@ -18,6 +18,12 @@ add_time:
           min: 1
           max: 31536000
           step: 1
+    account:
+      name: Account
+      description: Chaster username to use when multiple accounts are configured.
+      required: false
+      selector:
+        text:
 
 remove_time:
   name: Remove lock time
@@ -39,6 +45,12 @@ remove_time:
           min: 1
           max: 31536000
           step: 1
+    account:
+      name: Account
+      description: Chaster username to use when multiple accounts are configured.
+      required: false
+      selector:
+        text:
 
 lock_action:
   name: Lock action
@@ -71,6 +83,12 @@ lock_action:
       required: false
       selector:
         object: {}
+    account:
+      name: Account
+      description: Chaster username to use when multiple accounts are configured.
+      required: false
+      selector:
+        text:
 
 send_message:
   name: Send Chaster message
@@ -87,6 +105,12 @@ send_message:
       required: true
       selector:
         object: {}
+    account:
+      name: Account
+      description: Chaster username to use when multiple accounts are configured.
+      required: false
+      selector:
+        text:
 
 api_request:
   name: Chaster API request
@@ -119,3 +143,9 @@ api_request:
       required: false
       selector:
         object: {}
+    account:
+      name: Account
+      description: Chaster username to use when multiple accounts are configured.
+      required: false
+      selector:
+        text:
