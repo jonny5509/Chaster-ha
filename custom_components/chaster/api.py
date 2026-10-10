@@ -8,7 +8,28 @@ from .const import API_BASE
 
 
 class ChasterApiError(Exception):
-    """Chaster API error."""
+    """Chaster API error with optional HTTP metadata."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        retry_after: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.retry_after = retry_after
+
+
+def _header_int(value: str | None) -> int | None:
+    """Parse an integer-valued HTTP header without failing the request."""
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 class ChasterApi:
@@ -17,6 +38,13 @@ class ChasterApi:
     def __init__(self, session: ClientSession, token: str) -> None:
         self._session = session
         self._token = token
+        self.last_response_at: str | None = None
+        self.last_error: str | None = None
+        self.rate_limit: dict[str, int | None] = {
+            "limit": None,
+            "remaining": None,
+            "reset": None,
+        }
 
     async def request(self, method: str, path: str, **kwargs: Any) -> Any:
         """Make an authenticated request using the developer token."""
@@ -30,14 +58,29 @@ class ChasterApi:
 
         try:
             async with self._session.request(method.upper(), url, headers=headers, **kwargs) as response:
+                from datetime import datetime, timezone
+
+                self.last_response_at = datetime.now(timezone.utc).isoformat()
+                self.rate_limit = {
+                    "limit": _header_int(response.headers.get("X-RateLimit-Limit")),
+                    "remaining": _header_int(response.headers.get("X-RateLimit-Remaining")),
+                    "reset": _header_int(response.headers.get("X-RateLimit-Reset")),
+                }
                 if response.status >= 400:
+                    body = (await response.text())[:1000]
+                    retry_after = _header_int(response.headers.get("Retry-After"))
+                    self.last_error = f"HTTP {response.status}"
                     raise ChasterApiError(
-                        f"HTTP {response.status}: {(await response.text())[:1000]}"
+                        f"HTTP {response.status}: {body}",
+                        status_code=response.status,
+                        retry_after=retry_after,
                     )
+                self.last_error = None
                 if response.status == 204:
                     return None
                 return await response.json(content_type=None)
         except ClientError as err:
+            self.last_error = type(err).__name__
             raise ChasterApiError(str(err)) from err
 
     async def profile(self) -> Any:
