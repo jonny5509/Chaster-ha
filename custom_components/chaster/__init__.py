@@ -43,17 +43,32 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         await hass.http.async_register_static_paths([StaticPathConfig("/chaster/chaster-card.js", str(card_file), cache_headers=False)])
         frontend.add_extra_js_url(hass, "/chaster/chaster-card.js")
 
-    async def _api_for_lock(lock_id: str):
-        for coordinator in _coordinators(hass):
+    def _coordinator_for_account(account: str | None = None) -> ChasterCoordinator:
+        coordinators = _coordinators(hass)
+        if not coordinators:
+            raise HomeAssistantError("No Chaster account is configured")
+        if account:
+            for coordinator in coordinators:
+                profile = coordinator.data.get("profile", {}) if isinstance(coordinator.data, dict) else {}
+                username = profile.get("username") if isinstance(profile, dict) else None
+                entry_id = coordinator.config_entry.entry_id
+                if account.casefold() in {str(username or "").casefold(), entry_id.casefold()}:
+                    return coordinator
+            raise HomeAssistantError(f"No configured Chaster account matches '{account}'")
+        if len(coordinators) > 1:
+            raise HomeAssistantError("Specify the account username in the account field when multiple Chaster accounts are configured")
+        return coordinators[0]
+
+    async def _api_for_lock(lock_id: str, account: str | None = None):
+        coordinators = [_coordinator_for_account(account)] if account else _coordinators(hass)
+        for coordinator in coordinators:
             if any(coordinator.lock_id(item) == lock_id for item in coordinator.all_locks):
                 return coordinator.api, coordinator
         raise HomeAssistantError(f"Chaster lock {lock_id} is not known to this Home Assistant instance")
 
     async def api_request(call: ServiceCall) -> None:
-        coordinators = _coordinators(hass)
-        if not coordinators:
-            raise HomeAssistantError("No Chaster account is configured")
-        result = await coordinators[0].api.request(
+        coordinator = _coordinator_for_account(call.data.get("account"))
+        result = await coordinator.api.request(
             call.data["method"],
             call.data["path"],
             params=call.data.get("params"),
@@ -67,15 +82,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 "response_kind": "empty" if result is None else "object" if isinstance(result, dict) else "list" if isinstance(result, list) else type(result).__name__,
             },
         )
-        for coordinator in coordinators:
-            await coordinator.async_request_refresh()
+        await coordinator.async_request_refresh()
 
     async def lock_action(call: ServiceCall) -> None:
-        api, coordinator = await _api_for_lock(call.data["lock_id"])
+        api, coordinator = await _api_for_lock(call.data["lock_id"], call.data.get("account"))
         if not coordinator.enable_lock_actions:
             raise HomeAssistantError("Lock actions are disabled in integration options")
         path = call.data["path"].format(lock_id=call.data["lock_id"])
-        result = await api.request(call.data.get("method", "POST"), path, json=call.data.get("body", {}))
+        await api.request(call.data.get("method", "POST"), path, json=call.data.get("body", {}))
         hass.bus.async_fire(
             f"{DOMAIN}_action",
             {"lock_id": call.data["lock_id"], "path": path, "method": call.data.get("method", "POST")},
@@ -87,7 +101,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         if not coordinator.enable_lock_actions:
             raise HomeAssistantError("Lock actions are disabled in integration options")
         seconds = int(call.data["seconds"])
-        result = await api.update_time(
+        await api.update_time(
             call.data["lock_id"], seconds if call.service == "add_time" else -seconds
         )
         hass.bus.async_fire(
@@ -97,10 +111,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         await coordinator.async_request_refresh()
 
     async def send_message(call: ServiceCall) -> None:
-        coordinators = _coordinators(hass)
-        if not coordinators:
-            raise HomeAssistantError("No Chaster account is configured")
-        coordinator = coordinators[0]
+        coordinator = _coordinator_for_account(call.data.get("account"))
         if not coordinator.enable_messaging:
             raise HomeAssistantError("Messaging is disabled in integration options")
         result = await coordinator.api.request(
@@ -121,6 +132,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 vol.Required("path"): str,
                 vol.Optional("params"): dict,
                 vol.Optional("body"): dict,
+                vol.Optional("account"): str,
             }
         ),
     )
@@ -134,6 +146,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 vol.Required("path"): str,
                 vol.Optional("method", default="POST"): vol.In(["POST", "PUT", "PATCH", "DELETE"]),
                 vol.Optional("body"): dict,
+                vol.Optional("account"): str,
             }
         ),
     )
@@ -141,6 +154,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         {
             vol.Required("lock_id"): str,
             vol.Required("seconds"): vol.All(vol.Coerce(int), vol.Range(min=1, max=31_536_000)),
+            vol.Optional("account"): str,
         }
     )
     hass.services.async_register(DOMAIN, "add_time", add_or_remove_time, schema=time_schema)
@@ -149,7 +163,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         DOMAIN,
         "send_message",
         send_message,
-        schema=vol.Schema({vol.Required("body"): dict, vol.Optional("path", default="/conversations"): str}),
+        schema=vol.Schema({vol.Required("body"): dict, vol.Optional("path", default="/conversations"): str, vol.Optional("account"): str}),
     )
     return True
 
