@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
+from pathlib import Path
 import importlib
 import sys
 import types
@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, patch
 package_name = "custom_components.chaster"
 if package_name not in sys.modules:
     package = types.ModuleType(package_name)
-    package.__path__ = []  # type: ignore[attr-defined]
+    package.__path__ = [str(Path(__file__).resolve().parents[1] / "custom_components" / "chaster")]  # type: ignore[attr-defined]
     sys.modules[package_name] = package
 const_name = f"{package_name}.const"
 if const_name not in sys.modules:
