@@ -13,6 +13,13 @@ from .api import ChasterApi, ChasterApiError
 from .const import (
     CONF_ENABLE_KEYHOLDER,
     CONF_ENABLE_LOCK_ACTIONS,
+    CONF_ENABLE_NOTIFICATIONS,
+    CONF_NOTIFICATION_SERVICE,
+    CONF_NOTIFY_DAILY,
+    CONF_NOTIFY_COMPLETION,
+    CONF_NOTIFY_WEARER,
+    CONF_NOTIFY_KEYHOLDER,
+    DEFAULT_NOTIFICATION_SERVICE,
     CONF_ENABLE_MESSAGING,
     CONF_ENABLE_SHARED_LOCKS,
     CONF_ROLE_MODE,
@@ -116,6 +123,12 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_ENABLE_SHARED_LOCKS, default=defaults.get(CONF_ENABLE_SHARED_LOCKS, True)): bool,
                     vol.Optional(CONF_ENABLE_MESSAGING, default=defaults.get(CONF_ENABLE_MESSAGING, True)): bool,
                     vol.Optional(CONF_ENABLE_LOCK_ACTIONS, default=defaults.get(CONF_ENABLE_LOCK_ACTIONS, True)): bool,
+                    vol.Optional(CONF_ENABLE_NOTIFICATIONS, default=defaults.get(CONF_ENABLE_NOTIFICATIONS, False)): bool,
+                    vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): vol.All(str, vol.Match(r"^notify\.[a-z0-9_]+$")),
+                    vol.Optional(CONF_NOTIFY_DAILY, default=defaults.get(CONF_NOTIFY_DAILY, True)): bool,
+                    vol.Optional(CONF_NOTIFY_COMPLETION, default=defaults.get(CONF_NOTIFY_COMPLETION, True)): bool,
+                    vol.Optional(CONF_NOTIFY_WEARER, default=defaults.get(CONF_NOTIFY_WEARER, True)): bool,
+                    vol.Optional(CONF_NOTIFY_KEYHOLDER, default=defaults.get(CONF_NOTIFY_KEYHOLDER, True)): bool,
                 }
             ),
         )

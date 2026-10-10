@@ -27,6 +27,7 @@ from .const import (
     ROLE_AUTO,
 )
 from .coordinator import ChasterCoordinator
+from .notifications import async_setup_notifications
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -276,6 +277,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator.config_entry = entry
     await coordinator.async_config_entry_first_refresh()
     hass.data[DOMAIN][entry.entry_id] = coordinator
+    await async_setup_notifications(hass, entry, coordinator)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
