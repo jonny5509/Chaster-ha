@@ -46,6 +46,20 @@ def _first_datetime(lock: dict[str, Any], keys: tuple[str, ...]) -> datetime | N
     return None
 
 
+def _first_number(lock: dict[str, Any], keys: tuple[str, ...]) -> float | None:
+    """Find a numeric timer value in the lock or its nested timing payloads."""
+    for source in (lock, lock.get("timer"), lock.get("timing")):
+        if not isinstance(source, dict):
+            continue
+        for key in keys:
+            value = source.get(key)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                continue
+            if value >= 0:
+                return float(value)
+    return None
+
+
 def _keyholder_items(coordinator: ChasterCoordinator) -> list[dict[str, Any]]:
     """Return keyholder lock records, unwrapping API collection shapes."""
     data = coordinator.data if isinstance(coordinator.data, dict) else {}
@@ -121,13 +135,27 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
             if not lock_id:
                 continue
             start = _first_datetime(lock, ("startDate", "startAt", "startedAt", "createdAt"))
-            # Use the live end time from the latest coordinator payload. Chaster
-            # may move it when the timer is extended; some response shapes nest
-            # timer values instead of exposing them at the lock's top level.
+            # Chaster normally exposes an absolute end timestamp. If a response
+            # also includes remaining-time seconds, prefer that live snapshot,
+            # anchored to the last successful coordinator refresh so calendar
+            # reads don't make the event drift forward between refreshes.
             end = _first_datetime(
                 lock, ("endDate", "endAt", "unlockDate", "unlockAt", "maxLimitDate")
             )
-            # Don't invent dates if Chaster hasn't provided a valid interval.
+            remaining = _first_number(
+                lock, ("timeRemainingSeconds", "remainingSeconds", "remainingTimeSeconds")
+            )
+            updated_at = getattr(self.coordinator, "last_update_success_time", None)
+            if isinstance(updated_at, datetime):
+                if updated_at.tzinfo is None:
+                    updated_at = updated_at.replace(tzinfo=timezone.utc)
+                else:
+                    updated_at = updated_at.astimezone(timezone.utc)
+                if remaining is not None:
+                    from datetime import timedelta
+                    end = updated_at + timedelta(seconds=remaining)
+            # Keep the explicit absolute end as fallback when live timing is
+            # unavailable or hidden; never fabricate an end date.
             if start is None or end is None or end <= start:
                 continue
 
