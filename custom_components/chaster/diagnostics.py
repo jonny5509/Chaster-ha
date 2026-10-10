@@ -33,6 +33,7 @@ async def async_get_config_entry_diagnostics(
         "last_api_response": coordinator.api.last_response_at,
         "last_api_error": coordinator.api.last_error,
         "rate_limit": dict(coordinator.api.rate_limit),
+        "rate_limited_until": coordinator.api.rate_limited_until,
         "detected_roles": list(data.get("detected_roles") or []),
         "wearer_lock_count": len(coordinator._dict_list(data.get("locks"))),
         "shared_lock_count": len(coordinator._dict_list(data.get("shared_locks"))),
