@@ -76,6 +76,7 @@ Treat your API token like a password.
 - Keyholder Username
 - Lock Title
 - Lock Type
+- Per-lock status sensors for each discovered wearer/keyholder lock, including lock ID, role, dates, remaining time, freeze state, and available permission metadata
 - Start Date / End Date
 - Time Locked / Time Remaining
 - Session Role
@@ -163,7 +164,7 @@ Verify the developer token, required scopes, and Home Assistant's network connec
 
 ### Entities are unavailable
 
-Some entities require an active session, a specific role, or information that is not currently available from Chaster.
+Some entities require an active session, a specific role, or information that is not currently available from Chaster. Per-lock status sensors are created as locks are discovered on refresh; they identify each lock separately and do not make extra API requests.
 
 ### A button or service is unavailable
 
