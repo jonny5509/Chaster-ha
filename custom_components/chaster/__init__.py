@@ -97,7 +97,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         await coordinator.async_request_refresh()
 
     async def add_or_remove_time(call: ServiceCall) -> None:
-        api, coordinator = await _api_for_lock(call.data["lock_id"])
+        api, coordinator = await _api_for_lock(call.data["lock_id"], call.data.get("account"))
         if not coordinator.enable_lock_actions:
             raise HomeAssistantError("Lock actions are disabled in integration options")
         seconds = int(call.data["seconds"])
