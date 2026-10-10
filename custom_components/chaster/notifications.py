@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import logging
+import re
 from typing import Any
-
-import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
@@ -243,7 +242,7 @@ async def async_setup_notifications(
         return
 
     service = entry.options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)
-    if not isinstance(service, str) or not vol.match(r"^notify\.[a-z0-9_]+$")(service):
+    if not isinstance(service, str) or not re.fullmatch(r"notify\.[a-z0-9_]+", service):
         _LOGGER.warning("Chaster notifications are enabled but the notify service is invalid")
         return
 
