@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Any
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 from aiohttp import ClientError, ClientSession
 
@@ -20,6 +22,22 @@ class ChasterApiError(Exception):
         super().__init__(message)
         self.status_code = status_code
         self.retry_after = retry_after
+
+
+def _retry_after_seconds(value: str | None) -> int | None:
+    """Parse Retry-After as either delta seconds or an HTTP date."""
+    if not value:
+        return None
+    seconds = _header_int(value)
+    if seconds is not None:
+        return max(0, seconds)
+    try:
+        retry_at = parsedate_to_datetime(value)
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        return max(0, int((retry_at - datetime.now(timezone.utc)).total_seconds()))
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def _header_int(value: str | None) -> int | None:
@@ -45,6 +63,7 @@ class ChasterApi:
             "remaining": None,
             "reset": None,
         }
+        self.rate_limited_until: float | None = None
 
     async def request(self, method: str, path: str, **kwargs: Any) -> Any:
         """Make an authenticated request using the developer token."""
@@ -68,7 +87,16 @@ class ChasterApi:
                 }
                 if response.status >= 400:
                     body = (await response.text())[:1000]
-                    retry_after = _header_int(response.headers.get("Retry-After"))
+                    retry_after = _retry_after_seconds(response.headers.get("Retry-After"))
+                    if response.status == 429:
+                        # Do not blindly retry requests: some API calls mutate state.
+                        # Instead, expose a cooldown so the coordinator can back off.
+                        from time import time
+                        reset = self.rate_limit.get("reset")
+                        cooldown = retry_after
+                        if cooldown is None and reset is not None:
+                            cooldown = max(0, reset - int(time()))
+                        self.rate_limited_until = time() + (cooldown if cooldown is not None else 60)
                     self.last_error = f"HTTP {response.status}"
                     raise ChasterApiError(
                         f"HTTP {response.status}: {body}",
@@ -94,11 +122,78 @@ class ChasterApi:
         return await self.request("GET", f"/locks/{lock_id}")
 
     async def keyholder_locks(self, payload: dict[str, Any] | None = None) -> Any:
-        return await self.request(
-            "POST",
-            "/keyholder/locks/search",
-            json=payload or {"status": "locked", "page": 0, "limit": 50},
+        """Fetch keyholder lock search pages when the API exposes pagination metadata.
+
+        The endpoint's first response is returned unchanged when it does not
+        advertise additional pages. Pagination is bounded to avoid exhausting
+        the shared API request budget on very large accounts.
+        """
+        request_payload = dict(payload or {"status": "locked", "page": 0, "limit": 50})
+        first = await self.request("POST", "/keyholder/locks/search", json=request_payload)
+        if not isinstance(first, dict):
+            return first
+
+        collection_key = next(
+            (key for key in ("items", "results", "locks", "data") if isinstance(first.get(key), list)),
+            None,
         )
+        if collection_key is None:
+            return first
+
+        meta = first.get("meta") if isinstance(first.get("meta"), dict) else {}
+        total_pages = meta.get("totalPages", meta.get("total_pages", first.get("totalPages", first.get("total_pages"))))
+        has_next = meta.get("hasNextPage", meta.get("has_next_page", first.get("hasNextPage", first.get("has_next_page"))))
+        next_page = meta.get("nextPage", meta.get("next_page", first.get("nextPage", first.get("next_page"))))
+        current_page = request_payload.get("page", 0)
+        if not isinstance(current_page, int):
+            current_page = 0
+        try:
+            total_pages = int(total_pages) if total_pages is not None else None
+        except (TypeError, ValueError):
+            total_pages = None
+
+        combined = list(first[collection_key])
+        # Ten pages (up to 500 records at the default limit) is a safety bound.
+        for _ in range(9):
+            if isinstance(next_page, int):
+                page = next_page
+            elif total_pages is not None:
+                if current_page + 1 >= total_pages:
+                    break
+                page = current_page + 1
+            elif has_next is True:
+                page = current_page + 1
+            else:
+                break
+
+            if page <= current_page:
+                break
+            page_payload = {**request_payload, "page": page}
+            result = await self.request("POST", "/keyholder/locks/search", json=page_payload)
+            if not isinstance(result, dict) or not isinstance(result.get(collection_key), list):
+                break
+            page_items = result[collection_key]
+            if not page_items:
+                break
+            combined.extend(page_items)
+            current_page = page
+            page_meta = result.get("meta") if isinstance(result.get("meta"), dict) else {}
+            total_pages = page_meta.get("totalPages", page_meta.get("total_pages", result.get("totalPages", result.get("total_pages", total_pages))))
+            try:
+                total_pages = int(total_pages) if total_pages is not None else None
+            except (TypeError, ValueError):
+                total_pages = None
+            has_next = page_meta.get("hasNextPage", page_meta.get("has_next_page", result.get("hasNextPage", result.get("has_next_page"))))
+            next_page = page_meta.get("nextPage", page_meta.get("next_page", result.get("nextPage", result.get("next_page"))))
+
+        if len(combined) > len(first[collection_key]):
+            first[collection_key] = combined
+            first["_pagination_truncated"] = (
+                (isinstance(total_pages, int) and current_page + 1 < total_pages)
+                or has_next is True
+                or isinstance(next_page, int)
+            )
+        return first
 
     async def lock_extension(self, lock_id: str, extension_id: str) -> Any:
         """Get information from an extension attached to a lock."""
