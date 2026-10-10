@@ -210,7 +210,21 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             old_current = old_data.get("current_lock")
             combined = locks.copy()
             if isinstance(keyholder, dict):
-                combined.extend(self._dict_list(keyholder.get("items") or keyholder.get("locks") or keyholder.get("results") or keyholder.get("data")))
+                keyholder_items_for_current = self._dict_list(
+                    keyholder.get("items")
+                    or keyholder.get("locks")
+                    or keyholder.get("results")
+                    or keyholder.get("data")
+                )
+                # The keyholder search endpoint can return relationship
+                # records containing the actual lock under "lock". Evaluate
+                # that lock, not the wrapper, when determining current state.
+                combined.extend(
+                    item.get("lock")
+                    if isinstance(item.get("lock"), dict)
+                    else item
+                    for item in keyholder_items_for_current
+                )
             active = [x for x in combined if self.is_active(x)]
             current = max(active, key=lambda x: str(x.get("startDate") or x.get("startAt") or x.get("createdAt") or ""), default=None)
             # Keep the previous current lock only during an API outage. A
