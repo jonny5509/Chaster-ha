@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
-from aiohttp import ClientError, ClientSession
+from aiohttp import ClientError, ClientSession, ClientTimeout
 
 from .const import API_BASE
+
+_REQUEST_TIMEOUT = ClientTimeout(total=20)
 
 
 class ChasterApiError(Exception):
@@ -27,18 +30,29 @@ class ChasterApi:
         headers.setdefault("Accept", "application/json")
         headers["Authorization"] = f"Bearer {self._token}"
         url = f"{API_BASE}{path}"
+        kwargs.setdefault("timeout", _REQUEST_TIMEOUT)
 
         try:
-            async with self._session.request(method.upper(), url, headers=headers, **kwargs) as response:
+            async with self._session.request(
+                method.upper(), url, headers=headers, **kwargs
+            ) as response:
                 if response.status >= 400:
+                    # Response bodies may contain private account data; don't log them.
                     raise ChasterApiError(
-                        f"HTTP {response.status}: {(await response.text())[:1000]}"
+                        f"Chaster API returned HTTP {response.status}"
                     )
                 if response.status == 204:
                     return None
-                return await response.json(content_type=None)
+                try:
+                    return await response.json(content_type=None)
+                except (ValueError, ClientError) as err:
+                    raise ChasterApiError(
+                        "Chaster API returned an invalid JSON response"
+                    ) from err
+        except asyncio.TimeoutError as err:
+            raise ChasterApiError("Chaster API request timed out") from err
         except ClientError as err:
-            raise ChasterApiError(str(err)) from err
+            raise ChasterApiError("Unable to connect to the Chaster API") from err
 
     async def profile(self) -> Any:
         return await self.request("GET", "/auth/profile")
