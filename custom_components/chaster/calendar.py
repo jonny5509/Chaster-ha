@@ -135,10 +135,8 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
             if not lock_id:
                 continue
             start = _first_datetime(lock, ("startDate", "startAt", "startedAt", "createdAt"))
-            # Chaster normally exposes an absolute end timestamp. If a response
-            # also includes remaining-time seconds, prefer that live snapshot,
-            # anchored to the last successful coordinator refresh so calendar
-            # reads don't make the event drift forward between refreshes.
+            # Prefer a live remaining-time snapshot when available, anchored to
+            # the coordinator refresh so repeated calendar reads do not drift.
             end = _first_datetime(
                 lock, ("endDate", "endAt", "unlockDate", "unlockAt", "maxLimitDate")
             )
@@ -153,16 +151,17 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                     updated_at = updated_at.astimezone(timezone.utc)
                 if remaining is not None:
                     end = updated_at + timedelta(seconds=remaining)
-                # Reaching the expected unlock time does not necessarily mean
-                # the lock has ended. Chaster's active lock state is authoritative:
-                # keep the calendar event alive until a refresh reports it inactive.
-                # Compare against wall-clock time, not the refresh timestamp, because
-                # the expected end can pass long after the last coordinator refresh.
-                now = datetime.now(timezone.utc)
-                if end is not None and end <= now and self.coordinator.is_active(lock):
-                    interval = getattr(self.coordinator, "update_interval", None)
-                    extension = interval.total_seconds() if isinstance(interval, timedelta) else 60
-                    end = now + timedelta(seconds=max(60, extension))
+
+            # Reaching the expected unlock time does not necessarily mean the
+            # lock ended. Active state is authoritative. Keep an overdue active
+            # session visible even when this HA version/coordinator has no
+            # last_update_success_time (or the live timer is unavailable).
+            now = datetime.now(timezone.utc)
+            if end is not None and end <= now and self.coordinator.is_active(lock):
+                interval = getattr(self.coordinator, "update_interval", None)
+                extension = interval.total_seconds() if isinstance(interval, timedelta) else 60
+                end = now + timedelta(seconds=max(60, extension))
+
             # Keep the explicit absolute end as fallback when live timing is
             # unavailable or hidden; never fabricate an end date.
             if start is None or end is None or end <= start:
