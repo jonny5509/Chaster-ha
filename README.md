@@ -142,7 +142,7 @@ The card can display countdown information, task points, common lock controls, a
 
 ### 🔔 Automation events
 
-The integration emits Home Assistant bus events after a successful refresh when it detects lock lifecycle changes. Listen for `chaster_lock_detected`, `chaster_lock_started`, `chaster_lock_ended`, and `chaster_lock_updated`. More specific events are also emitted when the timer changes (`chaster_lock_time_changed`) or a lock is frozen/unfrozen (`chaster_lock_frozen`, `chaster_lock_unfrozen`). These specific events include the lock ID, role, current status/timer/frozen state, and relevant previous values. Event data is intentionally limited to lock metadata; it does not include conversation contents or API credentials. Initial setup does not emit a burst of "new lock" events for locks that already existed before the first successful refresh. These events are polling-based, so they can lag remote changes by up to the configured polling interval.
+The integration emits Home Assistant bus events after a successful refresh when it detects lock lifecycle changes. Listen for `chaster_lock_detected`, `chaster_lock_started`, `chaster_lock_ended`, and `chaster_lock_updated`. More specific events are also emitted when the timer changes (`chaster_lock_time_changed`) or a lock is frozen/unfrozen (`chaster_lock_frozen`, `chaster_lock_unfrozen`). API refresh failures emit `chaster_api_error`; HTTP 429 responses also emit `chaster_api_rate_limited`. Error events include only status/retry metadata, not response bodies or credentials. Lock event data is limited to lock metadata and relevant previous values; it does not include conversation contents or API credentials. Initial setup does not emit a burst of "new lock" events for locks that already existed before the first successful refresh. These events are polling-based, so they can lag remote changes by up to the configured polling interval.
 
 ## 🌐 Chaster API
 
@@ -174,7 +174,7 @@ Restart Home Assistant and check the logs for errors from `custom_components.cha
 
 ### API rate limits or intermittent updates
 
-Chaster applies request limits and returns rate-limit headers. Use a polling interval of 60 seconds or longer if you manage several active keyholder locks. The integration records the most recent rate-limit metadata and API error for troubleshooting.
+Chaster applies request limits and returns rate-limit headers. Use a polling interval of 60 seconds or longer if you manage several active keyholder locks. The integration parses both numeric and HTTP-date `Retry-After` values, backs off the next scheduled refresh after a 429 response, and does not blindly replay requests that may change lock state. Keyholder lock search follows additional pages only when the API response advertises pagination, with a bounded page limit. Diagnostics include the latest rate-limit metadata and cooldown timestamp.
 
 ### Diagnostics
 
