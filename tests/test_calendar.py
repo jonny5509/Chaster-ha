@@ -140,7 +140,7 @@ class CalendarTimerDateTests(unittest.TestCase):
         )
 
     def test_invalid_and_out_of_range_dates_are_ignored(self):
-        for value in (None, True, "", "not-a-date", float("inf"), 1e300):
+        for value in (None, True, "", "not-a-date", float("inf"), 1e300, 10**1000):
             with self.subTest(value=value):
                 self.assertIsNone(_parse_datetime(value))
 
@@ -155,7 +155,7 @@ class CalendarTimerDateTests(unittest.TestCase):
         )
 
     def test_timer_numbers_reject_nonfinite_negative_and_boolean_values(self):
-        for value in (float("inf"), float("-inf"), float("nan"), -1, True):
+        for value in (float("inf"), float("-inf"), float("nan"), -1, True, 10**1000):
             with self.subTest(value=value):
                 self.assertIsNone(_first_number(
                     {"timer": {"remainingSeconds": value}}, ("remainingSeconds",)
