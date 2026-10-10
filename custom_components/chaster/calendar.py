@@ -35,10 +35,14 @@ def _parse_datetime(value: Any) -> datetime | None:
 
 
 def _first_datetime(lock: dict[str, Any], keys: tuple[str, ...]) -> datetime | None:
-    for key in keys:
-        parsed = _parse_datetime(lock.get(key))
-        if parsed is not None:
-            return parsed
+    """Find a lock date in direct fields or a nested timer/date payload."""
+    for source in (lock, lock.get("timer"), lock.get("timing"), lock.get("dates")):
+        if not isinstance(source, dict):
+            continue
+        for key in keys:
+            parsed = _parse_datetime(source.get(key))
+            if parsed is not None:
+                return parsed
     return None
 
 
@@ -117,6 +121,9 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
             if not lock_id:
                 continue
             start = _first_datetime(lock, ("startDate", "startAt", "startedAt", "createdAt"))
+            # Use the live end time from the latest coordinator payload. Chaster
+            # may move it when the timer is extended; some response shapes nest
+            # timer values instead of exposing them at the lock's top level.
             end = _first_datetime(
                 lock, ("endDate", "endAt", "unlockDate", "unlockAt", "maxLimitDate")
             )
