@@ -60,7 +60,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         return coordinators[0]
 
     async def _api_for_lock(lock_id: str, account: str | None = None):
-        coordinators = [_coordinator_for_account(account)] if account else _coordinators(hass)
+        if account:
+            coordinators = [_coordinator_for_account(account)]
+        else:
+            coordinators = _coordinators(hass)
+            if len(coordinators) > 1:
+                raise HomeAssistantError(
+                    "Specify the account username in the account field when multiple Chaster accounts are configured"
+                )
         for coordinator in coordinators:
             if any(coordinator.lock_id(item) == lock_id for item in coordinator.all_locks):
                 return coordinator.api, coordinator
