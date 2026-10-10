@@ -431,7 +431,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         if new_entities:
             async_add_entities(new_entities)
 
-    coordinator.async_add_listener(_handle_coordinator_update)
+    entry.async_on_unload(coordinator.async_add_listener(_handle_coordinator_update))
 
 
 class ChasterIndividualLockSensor(ChasterEntity, SensorEntity):
