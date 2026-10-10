@@ -138,6 +138,10 @@ type: custom:chaster-card
 
 The card can display countdown information, task points, common lock controls, and time-adjustment controls.
 
+### 🔔 Automation events
+
+The integration emits Home Assistant bus events after a successful refresh when it detects lock lifecycle changes. Listen for `chaster_lock_detected`, `chaster_lock_started`, `chaster_lock_ended`, and `chaster_lock_updated`. Event data is intentionally limited to the lock ID, role, status, timer end, and relevant previous values; it does not include conversation contents or API credentials.
+
 ## 🌐 Chaster API
 
 This integration uses the Chaster Public API for supported authentication, lock, task, conversation, history, and lock-action functionality.
