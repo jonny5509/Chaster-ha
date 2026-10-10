@@ -23,9 +23,10 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.enable_shared = enable_shared
         self.enable_messaging = enable_messaging
         self.enable_lock_actions = enable_lock_actions
-        # Keep lock-action availability responsive so Unlock becomes
-        # available shortly after the timer expires.
-        refresh_interval = timedelta(seconds=min(interval, 10))
+        # Respect the configured scan interval to avoid excessive API calls.
+        # The options flow enforces a minimum of 30 seconds; retain that
+        # safeguard for entries created by older versions or external callers.
+        refresh_interval = timedelta(seconds=max(interval, 30))
         super().__init__(hass, logger=_LOGGER, name="Chaster", update_interval=refresh_interval)
 
     @staticmethod
