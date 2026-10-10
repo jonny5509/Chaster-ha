@@ -116,6 +116,7 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return max(active, key=lambda x: str(x.get("startDate") or x.get("startAt") or x.get("createdAt") or ""), default=None)
 
     async def _async_update_data(self) -> dict[str, Any]:
+        rate_limit_before = self.api.rate_limited_until
         try:
             profile = await self.api.profile()
             if not isinstance(profile, dict):
@@ -364,6 +365,23 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Never automatically replay API requests: POST actions may mutate state.
             from time import time
             cooldown_until = self.api.rate_limited_until
+            if (
+                cooldown_until is not None
+                and cooldown_until > (rate_limit_before or 0)
+            ):
+                retry_after = max(0, int(cooldown_until - time()))
+                self.hass.bus.async_fire(
+                    "chaster_api_error",
+                    {
+                        "status_code": 429,
+                        "retry_after": retry_after,
+                        "rate_limited": True,
+                    },
+                )
+                self.hass.bus.async_fire(
+                    "chaster_api_rate_limited",
+                    {"retry_after": retry_after},
+                )
             if cooldown_until is not None and cooldown_until > time():
                 cooldown = max(
                     self._base_update_interval.total_seconds(),
