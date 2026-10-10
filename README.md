@@ -57,7 +57,7 @@ If the integration is not yet listed in HACS, add this repository as a custom re
 
 Configuration is performed through the Home Assistant UI.
 
-You will need your **Chaster developer/API token**. Depending on the options and permissions available to your account, the integration can expose role information, shared locks, messaging, lock actions, and other supported features.
+You will need your **Chaster developer/API token**. Multiple distinct Chaster accounts can be added as separate config entries; each entry is named after the Chaster username. Depending on the options and permissions available to each account, the integration can expose role information, shared locks, messaging, lock actions, and other supported features.
 
 ### 🔑 Token security
 
@@ -120,6 +120,8 @@ action: chaster.add_time
 data:
   lock_id: LOCK_ID
   seconds: 3600
+  # Optional when only one account is configured; otherwise specify a Chaster username.
+  account: my_chaster_username
 ```
 
 ## ⏱️ Countdown and polling behaviour
@@ -140,7 +142,7 @@ The card can display countdown information, task points, common lock controls, a
 
 ### 🔔 Automation events
 
-The integration emits Home Assistant bus events after a successful refresh when it detects lock lifecycle changes. Listen for `chaster_lock_detected`, `chaster_lock_started`, `chaster_lock_ended`, and `chaster_lock_updated`. Event data is intentionally limited to the lock ID, role, status, timer end, and relevant previous values; it does not include conversation contents or API credentials.
+The integration emits Home Assistant bus events after a successful refresh when it detects lock lifecycle changes. Listen for `chaster_lock_detected`, `chaster_lock_started`, `chaster_lock_ended`, and `chaster_lock_updated`. Event data is intentionally limited to the lock ID, role, status, timer end, and relevant previous values; it does not include conversation contents or API credentials. Initial setup does not emit a burst of "new lock" events for locks that already existed before the first successful refresh. These events are polling-based, so they can lag remote changes by up to the configured polling interval.
 
 ## 🌐 Chaster API
 
