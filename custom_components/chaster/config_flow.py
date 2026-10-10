@@ -64,8 +64,12 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 session = aiohttp_client.async_get_clientsession(self.hass)
                 try:
                     await ChasterApi(session, token=token).profile()
-                except ChasterApiError:
-                    errors["base"] = "cannot_connect"
+                except ChasterApiError as err:
+                    message = str(err)
+                    if "HTTP 401" in message or "HTTP 403" in message:
+                        errors["base"] = "invalid_auth"
+                    else:
+                        errors["base"] = "cannot_connect"
                 else:
                     if reauth_entry is not None:
                         self.hass.config_entries.async_update_entry(
