@@ -1,4 +1,4 @@
-""""Role-specific calendars for Chaster lock sessions."""
+"""Role-specific calendars for Chaster lock sessions."""
 
 from __future__ import annotations
 
