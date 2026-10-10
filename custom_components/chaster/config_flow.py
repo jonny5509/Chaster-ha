@@ -6,7 +6,6 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers import aiohttp_client
 
 from .api import ChasterApi, ChasterApiError
@@ -39,13 +38,13 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 5
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> Any:
         """Ask for and validate a Chaster developer token."""
         if self._async_current_entries():
             return self.async_abort(reason="already_configured")
         return await self._async_token_form(user_input, reauth_entry=None)
 
-    async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> Any:
         """Handle reauthentication after a token expires or is revoked."""
         entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         if entry is None:
@@ -53,7 +52,7 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._reauth_entry = entry
         return await self._async_token_form(None, reauth_entry=entry)
 
-    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> Any:
         """Accept and validate a replacement developer token."""
         entry = getattr(self, "_reauth_entry", None)
         if entry is None:
