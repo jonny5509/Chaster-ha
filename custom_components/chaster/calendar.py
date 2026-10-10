@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
 from .coordinator import ChasterCoordinator
 from .entity import ChasterEntity
@@ -53,14 +53,24 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_sessions_calendar"
 
     def _events(self) -> list[CalendarEvent]:
-        events: list[CalendarEvent] = []
-        seen: set[str] = set()
+        events_by_id: dict[str, CalendarEvent] = {}
+        locks = list(self.coordinator.all_locks)
 
-        for lock in self.coordinator.all_locks:
-            lock_id = self.coordinator.lock_id(lock)
-            if not lock_id or lock_id in seen:
+        # The coordinator may hold the currently active wearer lock separately
+        # from the collection endpoint. Include it so My lock is not omitted
+        # when that endpoint returns only historical or partial lock records.
+        current_lock = self.coordinator.current_lock
+        if isinstance(current_lock, dict):
+            locks.append(current_lock)
+
+        for item in locks:
+            if not isinstance(item, dict):
                 continue
-            seen.add(lock_id)
+            nested = item.get("lock")
+            lock = {**item, **nested} if isinstance(nested, dict) else item
+            lock_id = self.coordinator.lock_id(lock)
+            if not lock_id:
+                continue
 
             start = _first_datetime(
                 lock, ("startDate", "startAt", "startedAt", "createdAt")
@@ -69,8 +79,7 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                 lock,
                 ("endDate", "endAt", "unlockDate", "unlockAt", "maxLimitDate"),
             )
-            # Calendar events need a real interval; don't fabricate dates when
-            # the API doesn't provide a session start or end.
+            # Don't invent dates if Chaster hasn't provided a valid interval.
             if start is None or end is None or end <= start:
                 continue
 
@@ -81,26 +90,21 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                 or f"Chaster session {lock_id}"
             )
             status = lock.get("status") or lock.get("state") or "unknown"
-            events.append(
-                CalendarEvent(
-                    summary=title,
-                    start=start,
-                    end=end,
-                    description=f"Chaster session\nStatus: {status}\nLock ID: {lock_id}",
-                    uid=f"chaster-{lock_id}",
-                )
+            events_by_id[lock_id] = CalendarEvent(
+                summary=title,
+                start=start,
+                end=end,
+                description=f"Chaster session\nStatus: {status}\nLock ID: {lock_id}",
+                uid=f"chaster-{lock_id}",
             )
 
-        return sorted(events, key=lambda event: event.start)
+        return sorted(events_by_id.values(), key=lambda event: event.start)
 
     @property
     def event(self) -> CalendarEvent | None:
         """Return the next ongoing or upcoming session."""
         now = datetime.now(timezone.utc)
-        return next(
-            (event for event in self._events() if event.end > now),
-            None,
-        )
+        return next((event for event in self._events() if event.end > now), None)
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
