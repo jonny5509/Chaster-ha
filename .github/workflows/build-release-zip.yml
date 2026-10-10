@@ -17,6 +17,28 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
+      - name: Set manifest version from release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          if not re.fullmatch(r"v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", tag):
+              raise SystemExit(f"Release tag is not a supported version: {tag}")
+
+          manifest_path = Path("custom_components/chaster/manifest.json")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          manifest["version"] = tag.removeprefix("v")
+          manifest_path.write_text(
+              json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
       - name: Build HACS ZIP
         run: |
           rm -f chaster.zip
