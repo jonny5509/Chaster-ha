@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -152,7 +152,6 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                 else:
                     updated_at = updated_at.astimezone(timezone.utc)
                 if remaining is not None:
-                    from datetime import timedelta
                     end = updated_at + timedelta(seconds=remaining)
             # Keep the explicit absolute end as fallback when live timing is
             # unavailable or hidden; never fabricate an end date.
