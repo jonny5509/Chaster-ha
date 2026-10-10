@@ -61,7 +61,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         )
         hass.bus.async_fire(
             f"{DOMAIN}_api_response",
-            {"method": call.data["method"], "path": call.data["path"], "result": result},
+            {
+                "method": call.data["method"],
+                "path": call.data["path"],
+                "response_kind": "empty" if result is None else "object" if isinstance(result, dict) else "list" if isinstance(result, list) else type(result).__name__,
+            },
         )
         for coordinator in coordinators:
             await coordinator.async_request_refresh()
@@ -74,7 +78,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         result = await api.request(call.data.get("method", "POST"), path, json=call.data.get("body", {}))
         hass.bus.async_fire(
             f"{DOMAIN}_action",
-            {"lock_id": call.data["lock_id"], "path": path, "result": result},
+            {"lock_id": call.data["lock_id"], "path": path, "method": call.data.get("method", "POST")},
         )
         await coordinator.async_request_refresh()
 
@@ -88,7 +92,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         )
         hass.bus.async_fire(
             f"{DOMAIN}_action",
-            {"lock_id": call.data["lock_id"], "action": call.service, "seconds": seconds, "result": result},
+            {"lock_id": call.data["lock_id"], "action": call.service, "seconds": seconds},
         )
         await coordinator.async_request_refresh()
 
@@ -96,10 +100,16 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         coordinators = _coordinators(hass)
         if not coordinators:
             raise HomeAssistantError("No Chaster account is configured")
-        result = await coordinators[0].api.request(
+        coordinator = coordinators[0]
+        if not coordinator.enable_messaging:
+            raise HomeAssistantError("Messaging is disabled in integration options")
+        result = await coordinator.api.request(
             "POST", call.data.get("path", "/conversations"), json=call.data["body"]
         )
-        hass.bus.async_fire(f"{DOMAIN}_message", {"result": result})
+        hass.bus.async_fire(
+            f"{DOMAIN}_message",
+            {"path": call.data.get("path", "/conversations"), "response_kind": "empty" if result is None else "object" if isinstance(result, dict) else "list" if isinstance(result, list) else type(result).__name__},
+        )
 
     hass.services.async_register(
         DOMAIN,
