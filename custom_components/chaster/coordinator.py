@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import ChasterApi, ChasterApiError
@@ -124,6 +125,19 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             requested_keyholder = self.role_mode in (ROLE_AUTO, ROLE_KEYHOLDER, ROLE_BOTH)
             old_data = self.data if isinstance(self.data, dict) else {}
 
+            # Persist every lock seen so completed sessions remain available
+            # after Chaster omits them from its active-lock listing.
+            entry = getattr(self, "config_entry", None)
+            archive_store = (
+                Store(self.hass, 1, f"chaster_lock_history_{entry.entry_id}")
+                if entry is not None
+                else None
+            )
+            saved_archive = await archive_store.async_load() if archive_store else None
+            saved_archive = saved_archive if isinstance(saved_archive, dict) else {}
+            archived_wearer = self._dict_list(saved_archive.get("wearer"))
+            archived_keyholder = self._dict_list(saved_archive.get("keyholder"))
+
             locks: list[dict[str, Any]] = []
             wearer_available = False
             if requested_wearer:
@@ -135,13 +149,23 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if self.role_mode == ROLE_WEARER:
                         raise
 
-            old_locks = self._dict_list(old_data.get("locks"))
-            current_ids = {self.lock_id(x) for x in locks if self.lock_id(x)}
-            for item in old_locks:
-                item_id = self.lock_id(item)
-                if item_id and item_id not in current_ids:
-                    locks.append(item)
-                    current_ids.add(item_id)
+            # Prefer fresh API records, while retaining all previously seen IDs.
+            merged_locks = {
+                self.lock_id(item): item
+                for item in archived_wearer
+                if self.lock_id(item)
+            }
+            merged_locks.update({
+                self.lock_id(item): item
+                for item in self._dict_list(old_data.get("locks"))
+                if self.lock_id(item)
+            })
+            merged_locks.update({
+                self.lock_id(item): item
+                for item in locks
+                if self.lock_id(item)
+            })
+            locks = list(merged_locks.values())
 
             shared: list[dict[str, Any]] = []
             if self.enable_shared and requested_keyholder:
@@ -205,6 +229,20 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 or keyholder.get("results")
                 or keyholder.get("data")
             )
+            merged_keyholder = {}
+            for item in archived_keyholder + keyholder_items:
+                lock_item = item.get("lock") if isinstance(item.get("lock"), dict) else item
+                item_id = self.lock_id(lock_item)
+                if item_id:
+                    merged_keyholder[item_id] = item
+            keyholder_items = list(merged_keyholder.values())
+            if keyholder_items:
+                target_key = next(
+                    (key for key in ("items", "locks", "results", "data")
+                     if isinstance(keyholder.get(key), list)),
+                    "items",
+                )
+                keyholder[target_key] = keyholder_items
 
             # Refresh active keyholder lock details so extension data is
             # available on the Keyholder device as well as the My lock device.
@@ -285,6 +323,15 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             else []
                         )
                         history_by_role[role] = self._dict_list(old_history)
+
+            if archive_store is not None:
+                await archive_store.async_save({
+                    "wearer": locks,
+                    "keyholder": [
+                        item.get("lock") if isinstance(item.get("lock"), dict) else item
+                        for item in keyholder_items
+                    ],
+                })
 
             history = history_by_role[ROLE_WEARER] or history_by_role[ROLE_KEYHOLDER]
             detected_roles = ([ROLE_WEARER] if wearer_available else []) + ([ROLE_KEYHOLDER] if keyholder_available else [])
