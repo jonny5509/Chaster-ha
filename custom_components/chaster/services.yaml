@@ -89,12 +89,6 @@ lock_action:
       required: false
       selector:
         text:
-    account:
-      name: Account
-      description: Chaster username to use when multiple accounts are configured.
-      required: false
-      selector:
-        text:
 
 send_message:
   name: Send Chaster message
@@ -149,3 +143,9 @@ api_request:
       required: false
       selector:
         object: {}
+    account:
+      name: Account
+      description: Chaster username to use when multiple accounts are configured.
+      required: false
+      selector:
+        text:
