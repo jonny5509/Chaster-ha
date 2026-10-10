@@ -172,5 +172,22 @@ class CalendarTimerDateTests(unittest.TestCase):
         self.assertEqual(event.end, datetime(2030, 1, 1, 13, 0, tzinfo=timezone.utc))
 
 
+    def test_overdue_active_event_stays_visible_without_refresh_timestamp(self):
+        lock = {
+            "id": "lock-overdue-no-refresh",
+            "startDate": "2020-01-01T10:00:00Z",
+            "endDate": "2020-01-01T12:30:00Z",
+            "status": "locked",
+        }
+        coordinator = _Coordinator({"locks": [lock]})
+        coordinator.is_active = lambda item: item.get("status") == "locked"
+        calendar = object.__new__(ChasterSessionCalendar)
+        calendar.coordinator = coordinator
+        calendar.role = "wearer"
+
+        event = calendar._events()[0]
+        self.assertGreater(event.end, datetime.now(timezone.utc))
+
+
 if __name__ == "__main__":
     unittest.main()
