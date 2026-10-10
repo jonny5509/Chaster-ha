@@ -122,11 +122,11 @@ data:
   seconds: 3600
 ```
 
-## ⏱️ Countdown behaviour
+## ⏱️ Countdown and polling behaviour
 
 **Time Locked** and **Time Remaining** update locally every second once the integration has received the required session data.
 
-This does **not** make an API request every second. API communication continues to use the integration's normal polling/update mechanism.
+This does **not** make an API request every second. API communication follows the configured **Polling interval** (30–3600 seconds). The default is 60 seconds. A longer interval reduces API traffic; lock-action availability and remote changes may take up to one polling interval to appear in Home Assistant.
 
 ## 🖥️ Lovelace dashboard card
 
@@ -165,6 +165,14 @@ Availability can depend on the current lock state, role, configured options, and
 ### Countdown is not updating
 
 Restart Home Assistant and check the logs for errors from `custom_components.chaster`.
+
+### API rate limits or intermittent updates
+
+Chaster applies request limits and returns rate-limit headers. Use a polling interval of 60 seconds or longer if you manage several active keyholder locks. The integration records the most recent rate-limit metadata and API error for troubleshooting.
+
+### Diagnostics
+
+When reporting a problem, use **Settings → Devices & services → Chaster → Download diagnostics** (if shown by your Home Assistant version). Diagnostics omit the API token and lock/conversation contents, and include polling options, role detection, entity-source counts, the last API response time, and rate-limit metadata.
 
 ## 👩‍💻 Development
 
