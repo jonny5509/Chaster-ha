@@ -56,7 +56,7 @@ _LOCK_EXTENSION_ACTION = re.compile(rf"/locks/{_ID}/extensions/{_ID}/action")
 _CONVERSATION_PATH = re.compile(rf"/conversations(?:/{_ID})?")
 
 
-def _validate_api_path(path: str, *, allow_query: bool = False) -> str:
+def _validate_api_path(path: str) -> str:
     """Reject paths that could escape the intended Chaster API endpoint."""
     if (
         not path.startswith("/")
@@ -121,11 +121,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         if not coordinator.enable_lock_actions:
             raise HomeAssistantError("Lock actions are disabled in integration options")
         template = call.data["path"]
-        if template not in _LOCK_ACTION_PATHS and not _LOCK_EXTENSION_ACTION.fullmatch(
-            template.replace("{lock_id}", lock_id)
+        path = template.format(lock_id=lock_id)
+        if template not in _LOCK_ACTION_PATHS and not re.fullmatch(
+            rf"/locks/{re.escape(lock_id)}/extensions/{_ID}/action", path
         ):
             raise HomeAssistantError("Unsupported Chaster lock action path")
-        path = template.format(lock_id=lock_id)
         _validate_api_path(path)
         result = await api.request(call.data.get("method", "POST"), path, json=call.data.get("body", {}))
         hass.bus.async_fire(
