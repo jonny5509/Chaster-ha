@@ -177,6 +177,7 @@ async def _remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> No
         "keyholder_frozen",
         "wearer_task_assigned",
         "keyholder_task_assigned",
+        "sessions_calendar",
     }
 
     for entity in list(registry.entities.values()):
