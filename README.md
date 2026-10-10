@@ -142,7 +142,7 @@ The card can display countdown information, task points, common lock controls, a
 
 ### 🔔 Automation events
 
-The integration emits Home Assistant bus events after a successful refresh when it detects lock lifecycle changes. Listen for `chaster_lock_detected`, `chaster_lock_started`, `chaster_lock_ended`, and `chaster_lock_updated`. Event data is intentionally limited to the lock ID, role, status, timer end, and relevant previous values; it does not include conversation contents or API credentials. Initial setup does not emit a burst of "new lock" events for locks that already existed before the first successful refresh. These events are polling-based, so they can lag remote changes by up to the configured polling interval.
+The integration emits Home Assistant bus events after a successful refresh when it detects lock lifecycle changes. Listen for `chaster_lock_detected`, `chaster_lock_started`, `chaster_lock_ended`, and `chaster_lock_updated`. More specific events are also emitted when the timer changes (`chaster_lock_time_changed`) or a lock is frozen/unfrozen (`chaster_lock_frozen`, `chaster_lock_unfrozen`). These specific events include the lock ID, role, current status/timer/frozen state, and relevant previous values. Event data is intentionally limited to lock metadata; it does not include conversation contents or API credentials. Initial setup does not emit a burst of "new lock" events for locks that already existed before the first successful refresh. These events are polling-based, so they can lag remote changes by up to the configured polling interval.
 
 ## 🌐 Chaster API
 
