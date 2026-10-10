@@ -129,6 +129,28 @@ class CalendarTimerDateTests(unittest.TestCase):
         self.assertEqual(second_event.end, datetime(2030, 1, 4, tzinfo=timezone.utc))
 
 
+    def test_expired_expected_end_is_extended_from_current_time_while_active(self):
+        refreshed_at = datetime(2020, 1, 1, 12, 0, tzinfo=timezone.utc)
+        lock = {
+            "id": "lock-overdue",
+            "startDate": "2020-01-01T10:00:00Z",
+            "endDate": "2020-01-01T12:30:00Z",
+            "timer": {"timeRemainingSeconds": 3600},
+            "status": "locked",
+        }
+        coordinator = _Coordinator({
+            "locks": [lock],
+            "last_update_success_time": refreshed_at,
+        })
+        coordinator.is_active = lambda item: item.get("status") == "locked"
+        coordinator.update_interval = __import__("datetime").timedelta(minutes=5)
+        calendar = object.__new__(ChasterSessionCalendar)
+        calendar.coordinator = coordinator
+        calendar.role = "wearer"
+
+        event = calendar._events()[0]
+        self.assertGreater(event.end, datetime.now(timezone.utc))
+
     def test_event_end_uses_remaining_time_anchored_to_refresh(self):
         refreshed_at = datetime(2030, 1, 1, 12, 0, tzinfo=timezone.utc)
         lock = {
