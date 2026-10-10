@@ -335,13 +335,23 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     else:
                         if previous_state["active"] and not current_state["active"]:
                             self.hass.bus.async_fire("chaster_lock_ended", {**current_state, "previous_status": previous_state["status"]})
+                        event_data = {
+                            **current_state,
+                            "previous_status": previous_state["status"],
+                            "previous_end_date": previous_state["end_date"],
+                            "previous_frozen": previous_state["frozen"],
+                        }
+                        if previous_state["frozen"] != current_state["frozen"]:
+                            event_name = (
+                                "chaster_lock_frozen"
+                                if current_state["frozen"]
+                                else "chaster_lock_unfrozen"
+                            )
+                            self.hass.bus.async_fire(event_name, event_data)
+                        if previous_state["end_date"] != current_state["end_date"]:
+                            self.hass.bus.async_fire("chaster_lock_time_changed", event_data)
                         if any(previous_state[field] != current_state[field] for field in ("status", "end_date", "frozen")):
-                            self.hass.bus.async_fire("chaster_lock_updated", {
-                                **current_state,
-                                "previous_status": previous_state["status"],
-                                "previous_end_date": previous_state["end_date"],
-                                "previous_frozen": previous_state["frozen"],
-                            })
+                            self.hass.bus.async_fire("chaster_lock_updated", event_data)
             return result
         except ChasterApiError as err:
             raise UpdateFailed(str(err)) from err
