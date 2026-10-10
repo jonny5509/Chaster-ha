@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
@@ -8,6 +9,7 @@ from aiohttp import ClientError, ClientSession, ClientTimeout
 from .const import API_BASE
 
 _REQUEST_TIMEOUT = ClientTimeout(total=20)
+_UNSAFE_PATH_ENCODING = re.compile(r"%(?:25)*(?:2e|2f|5c)", re.IGNORECASE)
 
 
 class ChasterApiError(Exception):
@@ -21,10 +23,26 @@ class ChasterApi:
         self._session = session
         self._token = token
 
+    @staticmethod
+    def _validate_path(path: str) -> str:
+        """Reject paths that could escape the configured Chaster API host."""
+        if (
+            not isinstance(path, str)
+            or not path.startswith("/")
+            or path.startswith("//")
+            or "\\" in path
+            or "?" in path
+            or "#" in path
+            or any(ord(char) < 32 or ord(char) == 127 for char in path)
+            or any(part in {".", ".."} for part in path.split("/"))
+            or _UNSAFE_PATH_ENCODING.search(path)
+        ):
+            raise ChasterApiError("Invalid Chaster API path")
+        return path
+
     async def request(self, method: str, path: str, **kwargs: Any) -> Any:
         """Make an authenticated request using the developer token."""
-        if not path.startswith("/"):
-            raise ChasterApiError("Chaster API paths must start with '/'")
+        path = self._validate_path(path)
 
         headers = dict(kwargs.pop("headers", {}))
         headers.setdefault("Accept", "application/json")
