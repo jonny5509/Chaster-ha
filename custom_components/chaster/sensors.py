@@ -304,7 +304,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     }
     for entity in list(registry.entities.values()):
         if entity.config_entry_id == entry.entry_id and entity.domain == "sensor":
-            if (entity.original_name or entity.name or "") not in allowed:
+            is_individual_lock = entity.unique_id.startswith(f"{entry.entry_id}_individual_lock_")
+            if (entity.original_name or entity.name or "") not in allowed and not is_individual_lock:
                 registry.async_remove(entity.entity_id)
 
     # Remove stale Keyholder lock entities created by older versions.
@@ -333,8 +334,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
             or original_name == "Current lock history"
             or registry_name == "Current lock history"
         )
+        is_individual_lock = entity.unique_id.startswith(f"{entry.entry_id}_individual_lock_")
         stale_dynamic_sensor = (
-            "_lock_" in entity.unique_id
+            not is_individual_lock
+            and "_lock_" in entity.unique_id
             or entity.unique_id.startswith(f"{entry.entry_id}_shared_")
             or original_name.startswith("My lock -")
             or registry_name.startswith("My lock -")
@@ -381,6 +384,103 @@ async def async_setup_entry(hass, entry, async_add_entities):
     ]
     entities.append(ChasterApiRateLimitSensor(coordinator))
     async_add_entities(entities)
+
+    # Create one lock-status sensor per known wearer/keyholder lock. A listener
+    # adds sensors for locks discovered on later refreshes without recreating
+    # existing entities or making extra API requests.
+    known_lock_sensors: set[str] = set()
+
+    def _new_lock_sensors() -> list[SensorEntity]:
+        created: list[SensorEntity] = []
+        data = coordinator.data if isinstance(coordinator.data, dict) else {}
+        sources: list[tuple[str, Any]] = [
+            ("wearer", data.get("locks", [])),
+        ]
+        keyholder = data.get("keyholder")
+        if isinstance(keyholder, dict):
+            sources.append((
+                "keyholder",
+                keyholder.get("items") or keyholder.get("locks") or keyholder.get("results") or keyholder.get("data") or [],
+            ))
+        for role, raw_items in sources:
+            if isinstance(raw_items, dict):
+                raw_items = list(raw_items.values())
+            for item in raw_items if isinstance(raw_items, list) else []:
+                if not isinstance(item, dict):
+                    continue
+                wrapper = item
+                nested = item.get("lock")
+                lock = {**item, **nested} if isinstance(nested, dict) else item
+                lock_id = _id(lock) or _id(wrapper)
+                if not lock_id:
+                    continue
+                unique = f"{entry.entry_id}_individual_lock_{role}_{lock_id}"
+                if unique in known_lock_sensors:
+                    continue
+                known_lock_sensors.add(unique)
+                created.append(ChasterIndividualLockSensor(coordinator, role, lock, unique))
+        return created
+
+    initial_lock_sensors = _new_lock_sensors()
+    if initial_lock_sensors:
+        async_add_entities(initial_lock_sensors)
+
+    @callback
+    def _handle_coordinator_update() -> None:
+        new_entities = _new_lock_sensors()
+        if new_entities:
+            async_add_entities(new_entities)
+
+    coordinator.async_add_listener(_handle_coordinator_update)
+
+
+class ChasterIndividualLockSensor(ChasterEntity, SensorEntity):
+    """Expose status and metadata for one specific Chaster lock."""
+
+    _attr_icon = "mdi:lock"
+    _attr_entity_registry_enabled_default = True
+
+    def __init__(self, coordinator, role: str, lock: dict[str, Any], unique_id: str) -> None:
+        super().__init__(coordinator, role)
+        self._lock_id = _id(lock)
+        self._attr_unique_id = unique_id
+        self._attr_name = f"Lock Status — {_name(lock)}"
+
+    @property
+    def _lock(self) -> dict[str, Any] | None:
+        data = self.coordinator.data if isinstance(self.coordinator.data, dict) else {}
+        if self.role == "wearer":
+            candidates = self.coordinator._dict_list(data.get("locks"))
+        else:
+            keyholder = data.get("keyholder")
+            if not isinstance(keyholder, dict):
+                return None
+            raw = keyholder.get("items") or keyholder.get("locks") or keyholder.get("results") or keyholder.get("data") or []
+            if isinstance(raw, dict):
+                raw = list(raw.values())
+            candidates = []
+            for item in raw if isinstance(raw, list) else []:
+                if isinstance(item, dict):
+                    nested = item.get("lock")
+                    candidates.append({**item, **nested} if isinstance(nested, dict) else item)
+        for lock in candidates:
+            if _id(lock) == self._lock_id:
+                return lock
+        return None
+
+    @property
+    def native_value(self):
+        lock = self._lock
+        if not lock:
+            return None
+        return lock.get("status", lock.get("state", "unknown"))
+
+    @property
+    def extra_state_attributes(self):
+        lock = self._lock
+        if not lock:
+            return {"lock_id": self._lock_id, "role": self.role}
+        return _attributes(lock, role=self.role)
 
 
 class ChasterApiRateLimitSensor(ChasterEntity, SensorEntity):
