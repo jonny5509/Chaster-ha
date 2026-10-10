@@ -19,10 +19,10 @@ def _parse_datetime(value: Any) -> datetime | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, (int, float)):
-        timestamp = float(value)
-        if timestamp > 10_000_000_000:
-            timestamp /= 1000
         try:
+            timestamp = float(value)
+            if timestamp > 10_000_000_000:
+                timestamp /= 1000
             return datetime.fromtimestamp(timestamp, tz=timezone.utc)
         except (OverflowError, OSError, ValueError):
             return None
@@ -56,10 +56,14 @@ def _first_number(lock: dict[str, Any], keys: tuple[str, ...]) -> float | None:
             value = source.get(key)
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 continue
-            # NaN and infinities are valid Python floats but invalid timer
-            # durations. Reject them before they reach timedelta arithmetic.
-            if math.isfinite(value) and value >= 0:
-                return float(value)
+            # NaN, infinities, and integers too large to convert to float
+            # are invalid timer durations. Reject them before timedelta math.
+            try:
+                number = float(value)
+            except (OverflowError, ValueError):
+                continue
+            if math.isfinite(number) and number >= 0:
+                return number
     return None
 
 
