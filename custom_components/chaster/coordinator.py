@@ -150,16 +150,27 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         raise
 
             # Prefer fresh API records, while retaining all previously seen IDs.
+            # The wearer endpoint lists active locks. When a previously active
+            # lock disappears from a successful response, keep it for calendar
+            # history but mark it ended so it cannot remain the current lock
+            # forever just because its last saved status was "locked".
+            fresh_wearer_ids = {
+                self.lock_id(item) for item in locks if self.lock_id(item)
+            }
             merged_locks = {
-                self.lock_id(item): item
+                self.lock_id(item): dict(item)
                 for item in archived_wearer
                 if self.lock_id(item)
             }
             merged_locks.update({
-                self.lock_id(item): item
+                self.lock_id(item): dict(item)
                 for item in self._dict_list(old_data.get("locks"))
                 if self.lock_id(item)
             })
+            if wearer_available:
+                for lock_id, item in merged_locks.items():
+                    if lock_id not in fresh_wearer_ids and self.is_active(item):
+                        item["status"] = "ended"
             merged_locks.update({
                 self.lock_id(item): item
                 for item in locks
@@ -202,7 +213,15 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 combined.extend(self._dict_list(keyholder.get("items") or keyholder.get("locks") or keyholder.get("results") or keyholder.get("data")))
             active = [x for x in combined if self.is_active(x)]
             current = max(active, key=lambda x: str(x.get("startDate") or x.get("startAt") or x.get("createdAt") or ""), default=None)
-            if current is None and isinstance(old_current, dict) and self.lock_id(old_current):
+            # Keep the previous current lock only during an API outage. A
+            # successful refresh with no active locks must clear it; otherwise
+            # a lock removed from the active listing can stay current forever.
+            if (
+                current is None
+                and not (wearer_available or keyholder_available)
+                and isinstance(old_current, dict)
+                and self.lock_id(old_current)
+            ):
                 current = old_current
 
             if current and self.lock_id(current):
