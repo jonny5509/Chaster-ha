@@ -82,6 +82,7 @@ Treat your API token like a password.
 - Task Points
 - Task Points Required
 - Task Points Remaining
+- API Requests Remaining (when rate-limit headers are provided)
 
 ### Binary sensors
 
