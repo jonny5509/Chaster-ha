@@ -158,7 +158,7 @@ class ChasterApi:
         """Unlock a lock only after its timer has expired."""
         from datetime import datetime, timezone
 
-        lock_id = self._path_segment(lock_id, "lock identifier")
+        safe_lock_id = self._path_segment(lock_id, "lock identifier")
         lock = await self.lock(lock_id)
         if not isinstance(lock, dict):
             raise ChasterApiError("Unable to verify lock timer before unlock")
@@ -195,7 +195,7 @@ class ChasterApi:
         if time.time() < end_time:
             raise ChasterApiError("Lock timer has not expired; unlock is blocked")
 
-        return await self.request("POST", f"/locks/{lock_id}/unlock")
+        return await self.request("POST", f"/locks/{safe_lock_id}/unlock")
 
     async def emergency_unlock(self, lock_id: str) -> Any:
         lock_id = self._path_segment(lock_id, "lock identifier")
