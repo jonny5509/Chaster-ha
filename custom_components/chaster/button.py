@@ -287,7 +287,8 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
     def available(self) -> bool:
         if not super().available:
             return False
-        if self._action == "refresh":
+        if self._action in {"refresh", "test_notification"}:
+            # These buttons do not require a lock or lock-action permissions.
             return True
         # Keep all action buttons visible. Home Assistant renders unavailable
         # entities as disabled instead of hiding them; availability below
