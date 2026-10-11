@@ -5,7 +5,6 @@ import voluptuous as vol
 from pathlib import Path
 
 from homeassistant.components import frontend
-from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
@@ -82,7 +81,24 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})
     card_file = Path(__file__).resolve().parent / "www" / "chaster-card.js"
     if card_file.is_file():
-        await hass.http.async_register_static_paths([StaticPathConfig("/chaster/chaster-card.js", str(card_file), cache_headers=False)])
+        # Import this newer HTTP helper lazily so older Home Assistant releases
+        # can still import the integration's config flow.
+        try:
+            from homeassistant.components.http import StaticPathConfig
+        except ImportError:
+            hass.http.register_static_path(
+                "/chaster/chaster-card.js", str(card_file), cache_headers=False
+            )
+        else:
+            await hass.http.async_register_static_paths(
+                [
+                    StaticPathConfig(
+                        "/chaster/chaster-card.js",
+                        str(card_file),
+                        cache_headers=False,
+                    )
+                ]
+            )
         frontend.add_extra_js_url(hass, "/chaster/chaster-card.js")
 
     async def _api_for_lock(lock_id: str):
