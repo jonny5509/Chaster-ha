@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.4] - 2026-10-11
+
+### Fixed
+- Fixed options-flow form serialization on Home Assistant versions where `voluptuous.Match` cannot be serialized by the config-flow API.
+- Validate notification service names when submitting options and fall back to `notify.notify` for invalid values.
+
 ## [2.3.3] - 2026-10-11
 
 ### Fixed
