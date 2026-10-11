@@ -7,7 +7,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers import aiohttp_client
+from homeassistant.helpers import aiohttp_client, selector
 
 from .api import ChasterApi, ChasterApiError
 from .const import (
@@ -138,7 +138,12 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_ENABLE_LOCK_ACTIONS, default=defaults.get(CONF_ENABLE_LOCK_ACTIONS, True)): bool,
                     vol.Optional(CONF_ENABLE_PHONE_NOTIFICATIONS, default=defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)): bool,
                     vol.Optional(CONF_ENABLE_HA_NOTIFICATIONS, default=defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)): bool,
-                    vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): vol.In(service_options),
+                    vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=service_options,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                     vol.Optional(CONF_NOTIFY_HA_DAILY, default=defaults.get(CONF_NOTIFY_HA_DAILY, False)): bool,
                     vol.Optional(CONF_NOTIFY_HA_COMPLETION, default=defaults.get(CONF_NOTIFY_HA_COMPLETION, False)): bool,
                     vol.Optional(CONF_NOTIFY_DAILY, default=defaults.get(CONF_NOTIFY_DAILY, False)): bool,
