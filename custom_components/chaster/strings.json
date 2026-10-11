@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Chaster",
+        "description": "Enter your Chaster developer API token.",
+        "data": {
+          "token": "Developer API token"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect Chaster",
+        "description": "Your API token needs to be replaced. Enter a valid developer token.",
+        "data": {
+          "token": "Developer API token"
+        }
+      }
+    },
+    "error": {
+      "invalid_token": "Enter a valid token.",
+      "invalid_auth": "Chaster rejected this token.",
+      "cannot_connect": "Unable to connect to Chaster."
+    },
+    "abort": {
+      "already_configured": "Chaster is already configured.",
+      "reauth_failed": "Unable to restart authentication.",
+      "reauth_successful": "Chaster was reconnected successfully."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Chaster settings",
+        "description": "Choose which features and notifications you want. All notification options are off by default.",
+        "data": {
+          "scan_interval": "Update interval (seconds)",
+          "role_mode": "Your Chaster role",
+          "enable_keyholder": "Enable keyholder features",
+          "enable_shared_locks": "Enable shared locks",
+          "enable_messaging": "Enable messaging",
+          "enable_lock_actions": "Enable lock actions",
+          "enable_phone_notifications": "Enable phone notifications",
+          "notification_service": "Phone to notify",
+          "notify_daily": "Phone: notify every 24 hours",
+          "notify_completion": "Phone: notify when session ends",
+          "enable_ha_notifications": "Enable Home Assistant notifications",
+          "notify_ha_daily": "Home Assistant: notify every 24 hours",
+          "notify_ha_completion": "Home Assistant: notify when session ends",
+          "notify_wearer": "Notify wearer",
+          "notify_keyholder": "Notify keyholder"
+        },
+        "data_description": {
+          "enable_phone_notifications": "Sends push notifications to the selected Home Assistant mobile app notify service.",
+          "notification_service": "Select the notify service for the phone you want to receive alerts.",
+          "notify_daily": "Send a phone push notification every 24 hours during a session.",
+          "notify_completion": "Send a phone push notification when a session ends.",
+          "enable_ha_notifications": "Creates persistent notifications inside Home Assistant.",
+          "notify_ha_daily": "Create a Home Assistant notification every 24 hours during a session.",
+          "notify_ha_completion": "Create a Home Assistant notification when a session ends."
+        }
+      }
+    }
+  }
+}
