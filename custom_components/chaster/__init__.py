@@ -178,6 +178,40 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         result = await coordinator.api.request("POST", path, json=call.data["body"])
         hass.bus.async_fire(f"{DOMAIN}_message", {"result": result})
 
+    async def test_notification(call: ServiceCall) -> None:
+        """Send a test message using the configured Chaster notify service."""
+        coordinators = _coordinators(hass)
+        if not coordinators:
+            raise HomeAssistantError("No Chaster account is configured")
+        coordinator = coordinators[0]
+        entry = getattr(coordinator, "config_entry", None)
+        options = entry.options if entry is not None else {}
+        configured = str(options.get("notification_service", "notify.notify")).strip()
+        if not re.fullmatch(r"notify\\.[a-z0-9_]+", configured):
+            raise HomeAssistantError("The configured Chaster notification service is invalid")
+        service_name = configured.split(".", 1)[1]
+        if not hass.services.has_service("notify", service_name):
+            raise HomeAssistantError(
+                f"Notification service {configured} does not exist. Check the service name in Chaster options."
+            )
+        try:
+            await hass.services.async_call(
+                "notify",
+                service_name,
+                {
+                    "title": "Chaster test notification",
+                    "message": call.data.get(
+                        "message",
+                        "This is a test notification from your Chaster Home Assistant integration.",
+                    ),
+                },
+                blocking=True,
+            )
+        except Exception as err:
+            raise HomeAssistantError(
+                f"Unable to send test notification using {configured}: {err}"
+            ) from err
+
     hass.services.async_register(
         DOMAIN,
         "api_request",
@@ -216,6 +250,17 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         "send_message",
         send_message,
         schema=vol.Schema({vol.Required("body"): dict, vol.Optional("path", default="/conversations"): str}),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "test_notification",
+        test_notification,
+        schema=vol.Schema({
+            vol.Optional(
+                "message",
+                default="This is a test notification from your Chaster Home Assistant integration.",
+            ): str,
+        }),
     )
     return True
 
@@ -308,7 +353,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     hass.data[DOMAIN].pop(entry.entry_id, None)
     if unload_ok and not _coordinators(hass):
-        for service in ("api_request", "lock_action", "add_time", "remove_time", "send_message"):
+        for service in ("api_request", "lock_action", "add_time", "remove_time", "send_message", "test_notification"):
             if hass.services.has_service(DOMAIN, service):
                 hass.services.async_remove(DOMAIN, service)
     return unload_ok
