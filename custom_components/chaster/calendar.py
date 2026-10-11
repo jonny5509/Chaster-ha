@@ -21,7 +21,7 @@ def _parse_datetime(value: Any) -> datetime | None:
     if isinstance(value, (int, float)):
         try:
             timestamp = float(value)
-            if timestamp > 10_000_000_000:
+            if abs(timestamp) >= 10_000_000_000:
                 timestamp /= 1000
             return datetime.fromtimestamp(timestamp, tz=timezone.utc)
         except (OverflowError, OSError, ValueError):
