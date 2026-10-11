@@ -19,15 +19,20 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, api: ChasterApi, interval: int = DEFAULT_SCAN_INTERVAL, role_mode: str = ROLE_AUTO, enable_keyholder: bool = True, enable_shared: bool = True, enable_messaging: bool = True, enable_lock_actions: bool = True) -> None:
         self.api = api
-        self.role_mode = role_mode
-        self.enable_keyholder = enable_keyholder
-        self.enable_shared = enable_shared
-        self.enable_messaging = enable_messaging
-        self.enable_lock_actions = enable_lock_actions
-        # Respect the configured scan interval to avoid excessive API calls.
-        # The options flow enforces a minimum of 30 seconds; retain that
-        # safeguard for entries created by older versions or external callers.
-        refresh_interval = timedelta(seconds=max(interval, 30))
+        # Settings can originate from older entries or manual storage edits, so
+        # normalize them before constructing the coordinator. Invalid values
+        # must not prevent the whole integration from starting.
+        try:
+            scan_interval = int(interval)
+        except (TypeError, ValueError, OverflowError):
+            scan_interval = DEFAULT_SCAN_INTERVAL
+        scan_interval = min(max(scan_interval, 30), 3600)
+        self.role_mode = role_mode if role_mode in (ROLE_AUTO, ROLE_WEARER, ROLE_KEYHOLDER, ROLE_BOTH) else ROLE_AUTO
+        self.enable_keyholder = bool(enable_keyholder)
+        self.enable_shared = bool(enable_shared)
+        self.enable_messaging = bool(enable_messaging)
+        self.enable_lock_actions = bool(enable_lock_actions)
+        refresh_interval = timedelta(seconds=scan_interval)
         super().__init__(hass, logger=_LOGGER, name="Chaster", update_interval=refresh_interval)
 
     @staticmethod
