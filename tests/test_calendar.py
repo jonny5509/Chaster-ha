@@ -127,6 +127,10 @@ class CalendarTimerDateTests(unittest.TestCase):
         expected = datetime(2030, 1, 1, tzinfo=timezone.utc)
         self.assertEqual(_parse_datetime(1_893_456_000_000), expected)
 
+    def test_parses_negative_millisecond_unix_timestamp(self):
+        expected = datetime.fromtimestamp(-1_000_000_000, tz=timezone.utc)
+        self.assertEqual(_parse_datetime(-1_000_000_000_000), expected)
+
     def test_naive_iso_date_is_treated_as_utc(self):
         self.assertEqual(
             _parse_datetime("2030-01-01T00:00:00"),
