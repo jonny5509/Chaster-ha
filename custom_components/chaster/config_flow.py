@@ -113,6 +113,16 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> Any:
         """Handle integration options."""
         if user_input is not None:
+            # Keep the form schema serializable across supported Home Assistant
+            # versions. The coordinator validates the service name and falls
+            # back to DEFAULT_NOTIFICATION_SERVICE if it is invalid.
+            service = str(user_input.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)).strip()
+            if not service.startswith("notify.") or not service[7:] or any(
+                char not in "abcdefghijklmnopqrstuvwxyz0123456789_" for char in service[7:]
+            ):
+                user_input[CONF_NOTIFICATION_SERVICE] = DEFAULT_NOTIFICATION_SERVICE
+            else:
+                user_input[CONF_NOTIFICATION_SERVICE] = service
             return self.async_create_entry(title="", data=user_input)
 
         defaults = self.config_entry.options
@@ -127,7 +137,9 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_ENABLE_MESSAGING, default=defaults.get(CONF_ENABLE_MESSAGING, True)): bool,
                     vol.Optional(CONF_ENABLE_LOCK_ACTIONS, default=defaults.get(CONF_ENABLE_LOCK_ACTIONS, True)): bool,
                     vol.Optional(CONF_ENABLE_NOTIFICATIONS, default=defaults.get(CONF_ENABLE_NOTIFICATIONS, False)): bool,
-                    vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): vol.All(str, vol.Match(r"^notify\.[a-z0-9_]+$")),
+                    # Match() validators cannot be serialized by the config-flow
+                    # API in some Home Assistant releases; validate on submit.
+                    vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): str,
                     vol.Optional(CONF_NOTIFY_DAILY, default=defaults.get(CONF_NOTIFY_DAILY, True)): bool,
                     vol.Optional(CONF_NOTIFY_COMPLETION, default=defaults.get(CONF_NOTIFY_COMPLETION, True)): bool,
                     vol.Optional(CONF_NOTIFY_WEARER, default=defaults.get(CONF_NOTIFY_WEARER, True)): bool,
