@@ -118,9 +118,13 @@ class ChasterLockNotifications:
         self.entry = entry
         self.coordinator = coordinator
         self.options = entry.options
-        self.service = str(
+        configured_service = str(
             self.options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)
-        ).split(".", 1)[1]
+        )
+        if re.fullmatch(r"notify\.[a-z0-9_]+", configured_service):
+            self.service = configured_service.split(".", 1)[1]
+        else:
+            self.service = DEFAULT_NOTIFICATION_SERVICE.split(".", 1)[1]
         self.store = Store(hass, 1, f"{DOMAIN}_notifications_{entry.entry_id}")
         self.state: dict[str, dict[str, Any]] = {}
 
