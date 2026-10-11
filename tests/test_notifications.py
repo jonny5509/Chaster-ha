@@ -42,6 +42,8 @@ package.__path__ = [str(package_path)]  # type: ignore[attr-defined]
 const = importlib.import_module(f"{package_name}.const")
 for name, value in {
     "CONF_ENABLE_NOTIFICATIONS": "enable_notifications",
+    "CONF_ENABLE_PHONE_NOTIFICATIONS": "enable_phone_notifications",
+    "CONF_ENABLE_HA_NOTIFICATIONS": "enable_ha_notifications",
     "CONF_NOTIFICATION_SERVICE": "notification_service",
     "CONF_NOTIFY_COMPLETION": "notify_lock_completion",
     "CONF_NOTIFY_DAILY": "notify_daily_congratulations",
