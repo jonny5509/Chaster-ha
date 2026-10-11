@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.3.6] - 2026-10-11
+
+### Added
+- Added a pressable `Test notification` button entity that sends a test message through the configured notification service.
+
 ## [2.3.5] - 2026-10-11
 
 ### Added
