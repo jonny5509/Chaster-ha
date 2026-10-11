@@ -119,3 +119,14 @@ api_request:
       required: false
       selector:
         object: {}
+
+test_notification:
+  name: Test notification
+  description: Send a test message using the notification service selected in Chaster options. Works even when automatic Chaster notifications are disabled.
+  fields:
+    message:
+      name: Message
+      description: Optional text to include in the test notification.
+      required: false
+      selector:
+        text:
