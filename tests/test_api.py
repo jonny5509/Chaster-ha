@@ -44,9 +44,9 @@ class ValidatePathTests(unittest.TestCase):
         for path in (
             "/locks?admin=true",
             "/locks#fragment",
-            "/locks\\\\evil",
+            "/locks\\evil",
             "/locks/one\ntwo",
-            "/locks/one\\x7f",
+            "/locks/one\x7f",
         ):
             with self.subTest(path=path), self.assertRaises(ChasterApiError):
                 ChasterApi._validate_path(path)
@@ -62,6 +62,12 @@ class ValidatePathTests(unittest.TestCase):
         ):
             with self.subTest(path=path), self.assertRaises(ChasterApiError):
                 ChasterApi._validate_path(path)
+
+    def test_identifier_must_be_a_single_safe_path_segment(self) -> None:
+        self.assertEqual(ChasterApi._path_segment("abc-123"), "abc-123")
+        for value in ("", ".", "..", "a/b", "a\\b", "a?b", "a#b", "a%b", "bad\nvalue", "bad\x7fvalue"):
+            with self.subTest(value=value), self.assertRaises(ChasterApiError):
+                ChasterApi._path_segment(value)
 
 
 class UnlockSafetyTests(unittest.IsolatedAsyncioTestCase):
@@ -100,6 +106,26 @@ class UnlockSafetyTests(unittest.IsolatedAsyncioTestCase):
         self.api.lock.return_value = None
         with self.assertRaisesRegex(ChasterApiError, "Unable to verify lock timer"):
             await self.api.unlock("lock-1")
+        self.api.request.assert_not_awaited()
+
+    async def test_unlock_rejects_boolean_end_time(self) -> None:
+        self.api.lock.return_value = {"endDate": True}
+        with self.assertRaisesRegex(ChasterApiError, "no valid end time"):
+            await self.api.unlock("lock-1")
+        self.api.request.assert_not_awaited()
+
+    async def test_unlock_rejects_non_finite_end_time(self) -> None:
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value):
+                self.api.lock.return_value = {"endDate": value}
+                with self.assertRaisesRegex(ChasterApiError, "no valid end time"):
+                    await self.api.unlock("lock-1")
+                self.api.request.assert_not_awaited()
+
+    async def test_unlock_rejects_unsafe_lock_id(self) -> None:
+        with self.assertRaisesRegex(ChasterApiError, "Invalid Chaster API lock identifier"):
+            await self.api.unlock("../profile")
+        self.api.lock.assert_not_awaited()
         self.api.request.assert_not_awaited()
 
 
