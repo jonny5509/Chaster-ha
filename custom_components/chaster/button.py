@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import math
+import re
 from typing import Any
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.exceptions import HomeAssistantError
 
 from .api import ChasterApiError
+from .const import CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE
 from .coordinator import ChasterCoordinator
 from .entity import ChasterEntity
 
@@ -19,7 +22,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # does not remain visible after the button is no longer created.
     registry = er.async_get(hass)
     devices = dr.async_get(hass)
-    allowed = {"Refresh", "Refresh history", "Unlock", "Emergency unlock", "Archive", "Freeze", "Unfreeze", "Add 1 day", "Add 1 hour", "Subtract 1 day", "Subtract 1 hour"}
+    allowed = {"Refresh", "Refresh history", "Unlock", "Emergency unlock", "Archive", "Freeze", "Unfreeze", "Add 1 day", "Add 1 hour", "Subtract 1 day", "Subtract 1 hour", "Test notification"}
     for entity in list(registry.entities.values()):
         if entity.config_entry_id == entry.entry_id and entity.domain == "button":
             if (entity.original_name or entity.name or "") not in allowed:
@@ -90,6 +93,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
         )
         for action, suffix, icon in actions:
             entities.append(ChasterActionButton(coordinator, action, suffix, icon, role))
+    entities.append(
+        ChasterActionButton(coordinator, "test_notification", "Test notification", "mdi:bell-ring", None)
+    )
     async_add_entities(entities)
 
 
@@ -299,6 +305,24 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
         return self._mode_allows_action(lock)
 
     async def async_press(self) -> None:
+        if self._action == "test_notification":
+            configured = str(self.coordinator.config_entry.options.get(
+                CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE
+            )).strip()
+            if not re.fullmatch(r"notify\.[a-z0-9_]+", configured):
+                raise HomeAssistantError("The configured Chaster notification service is invalid. Check Chaster options.")
+            service_name = configured.split(".", 1)[1]
+            if not self.hass.services.has_service("notify", service_name):
+                raise HomeAssistantError(f"Notification service {configured} does not exist. Check Chaster options.")
+            await self.hass.services.async_call(
+                "notify", service_name,
+                {
+                    "title": "Chaster test notification",
+                    "message": "This is a test notification from your Chaster Home Assistant integration.",
+                },
+                blocking=True,
+            )
+            return
         if self._action == "refresh":
             await self.coordinator.async_request_refresh()
             return
