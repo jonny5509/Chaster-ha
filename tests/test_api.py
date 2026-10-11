@@ -122,6 +122,12 @@ class UnlockSafetyTests(unittest.IsolatedAsyncioTestCase):
                     await self.api.unlock("lock-1")
                 self.api.request.assert_not_awaited()
 
+    async def test_unlock_rejects_out_of_range_integer_end_time(self) -> None:
+        self.api.lock.return_value = {"endDate": 10**400}
+        with self.assertRaisesRegex(ChasterApiError, "no valid end time"):
+            await self.api.unlock("lock-1")
+        self.api.request.assert_not_awaited()
+
     async def test_unlock_rejects_unsafe_lock_id(self) -> None:
         with self.assertRaisesRegex(ChasterApiError, "Invalid Chaster API lock identifier"):
             await self.api.unlock("../profile")
