@@ -131,7 +131,7 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
     def __init__(self, coordinator: ChasterCoordinator, role: str) -> None:
         super().__init__(coordinator, role)
         self.role = role
-        self._attr_name = "My lock" if role == "wearer" else "Keyholder"
+        self._attr_name = None
         suffix = "sessions_calendar" if role == "wearer" else "sessions_calendar_keyholder"
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{suffix}"
 
