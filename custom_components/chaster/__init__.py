@@ -187,7 +187,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         entry = getattr(coordinator, "config_entry", None)
         options = entry.options if entry is not None else {}
         configured = str(options.get("notification_service", "notify.notify")).strip()
-        if not re.fullmatch(r"notify\\.[a-z0-9_]+", configured):
+        if not re.fullmatch(r"notify\.[a-z0-9_]+", configured):
             raise HomeAssistantError("The configured Chaster notification service is invalid")
         service_name = configured.split(".", 1)[1]
         if not hass.services.has_service("notify", service_name):
