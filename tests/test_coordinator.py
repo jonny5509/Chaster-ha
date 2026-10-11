@@ -34,6 +34,7 @@ update_coordinator = _module("homeassistant.helpers.update_coordinator")
 class _DataUpdateCoordinator:
     def __init__(self, *args, **kwargs):
         self.data = None
+        self.update_interval = kwargs.get("update_interval")
 
     @classmethod
     def __class_getitem__(cls, item):
@@ -71,6 +72,24 @@ coordinator_module = module_from_spec(spec)
 sys.modules[module_name] = coordinator_module
 spec.loader.exec_module(coordinator_module)
 ChasterCoordinator = coordinator_module.ChasterCoordinator
+
+
+
+
+class CoordinatorSettingsTests(unittest.TestCase):
+    def test_invalid_scan_interval_falls_back_to_default(self):
+        coordinator = ChasterCoordinator(object(), object(), interval="invalid")
+        self.assertEqual(coordinator.update_interval.total_seconds(), 60)
+
+    def test_scan_interval_is_clamped(self):
+        too_short = ChasterCoordinator(object(), object(), interval=1)
+        too_long = ChasterCoordinator(object(), object(), interval=999999)
+        self.assertEqual(too_short.update_interval.total_seconds(), 30)
+        self.assertEqual(too_long.update_interval.total_seconds(), 3600)
+
+    def test_invalid_role_mode_falls_back_to_auto(self):
+        coordinator = ChasterCoordinator(object(), object(), role_mode="unexpected")
+        self.assertEqual(coordinator.role_mode, "auto")
 
 
 class KeyholderLockSelectionTests(unittest.TestCase):
