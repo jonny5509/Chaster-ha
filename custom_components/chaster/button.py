@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
 import math
+from typing import Any
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.helpers import device_registry as dr
