@@ -19,6 +19,8 @@ from .const import (
     CONF_NOTIFY_COMPLETION,
     CONF_NOTIFY_WEARER,
     CONF_NOTIFY_KEYHOLDER,
+    CONF_NOTIFY_HA_DAILY,
+    CONF_NOTIFY_HA_COMPLETION,
     DEFAULT_NOTIFICATION_SERVICE,
     CONF_ENABLE_MESSAGING,
     CONF_ENABLE_SHARED_LOCKS,
@@ -116,6 +118,12 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         defaults = self.config_entry.options
+        notify_services = sorted(self.hass.services.async_services().get("notify", {}))
+        if "notify" not in notify_services:
+            notify_services.insert(0, "notify")
+        service_options = [f"notify.{name}" for name in notify_services]
+        if defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE) not in service_options:
+            service_options.append(defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE))
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
@@ -127,7 +135,9 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_ENABLE_MESSAGING, default=defaults.get(CONF_ENABLE_MESSAGING, True)): bool,
                     vol.Optional(CONF_ENABLE_LOCK_ACTIONS, default=defaults.get(CONF_ENABLE_LOCK_ACTIONS, True)): bool,
                     vol.Optional(CONF_ENABLE_NOTIFICATIONS, default=defaults.get(CONF_ENABLE_NOTIFICATIONS, False)): bool,
-                    vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): str,
+                    vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): vol.In(service_options),
+                    vol.Optional(CONF_NOTIFY_HA_DAILY, default=defaults.get(CONF_NOTIFY_HA_DAILY, False)): bool,
+                    vol.Optional(CONF_NOTIFY_HA_COMPLETION, default=defaults.get(CONF_NOTIFY_HA_COMPLETION, False)): bool,
                     vol.Optional(CONF_NOTIFY_DAILY, default=defaults.get(CONF_NOTIFY_DAILY, False)): bool,
                     vol.Optional(CONF_NOTIFY_COMPLETION, default=defaults.get(CONF_NOTIFY_COMPLETION, False)): bool,
                     vol.Optional(CONF_NOTIFY_WEARER, default=defaults.get(CONF_NOTIFY_WEARER, False)): bool,
