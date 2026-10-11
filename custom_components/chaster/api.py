@@ -169,7 +169,10 @@ class ChasterApi:
             if value is None or isinstance(value, bool):
                 continue
             if isinstance(value, (int, float)):
-                timestamp = float(value)
+                try:
+                    timestamp = float(value)
+                except (OverflowError, TypeError, ValueError):
+                    continue
                 if not math.isfinite(timestamp):
                     continue
                 if abs(timestamp) >= 10000000000:
