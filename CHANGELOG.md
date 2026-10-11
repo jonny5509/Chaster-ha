@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.3.7] - 2026-10-11
+
+### Fixed
+- Fixed the Test notification button being unavailable when lock actions were disabled or no lock was present.
+
 ## [2.3.6] - 2026-10-11
 
 ### Added
