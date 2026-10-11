@@ -45,6 +45,8 @@ for name, value in {
     "CONF_NOTIFICATION_SERVICE": "notification_service",
     "CONF_NOTIFY_COMPLETION": "notify_lock_completion",
     "CONF_NOTIFY_DAILY": "notify_daily_congratulations",
+    "CONF_NOTIFY_HA_DAILY": "notify_ha_daily",
+    "CONF_NOTIFY_HA_COMPLETION": "notify_ha_completion",
     "CONF_NOTIFY_KEYHOLDER": "notify_keyholder_locks",
     "CONF_NOTIFY_WEARER": "notify_wearer_locks",
     "DEFAULT_NOTIFICATION_SERVICE": "notify.notify",

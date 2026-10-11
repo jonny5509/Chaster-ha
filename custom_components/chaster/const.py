@@ -23,3 +23,6 @@ ROLE_KEYHOLDER = "keyholder"
 ROLE_BOTH = "both"
 PLATFORMS = ["sensor", "button", "binary_sensor", "calendar"]
 ATTR_LOCK_ID = "lock_id"
+
+CONF_NOTIFY_HA_DAILY = "notify_ha_daily"
+CONF_NOTIFY_HA_COMPLETION = "notify_ha_completion"
