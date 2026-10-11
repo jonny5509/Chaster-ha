@@ -16,6 +16,8 @@ from .const import (
     CONF_NOTIFICATION_SERVICE,
     CONF_NOTIFY_COMPLETION,
     CONF_NOTIFY_DAILY,
+    CONF_NOTIFY_HA_DAILY,
+    CONF_NOTIFY_HA_COMPLETION,
     CONF_NOTIFY_KEYHOLDER,
     CONF_NOTIFY_WEARER,
     DEFAULT_NOTIFICATION_SERVICE,
@@ -149,21 +151,30 @@ class ChasterLockNotifications:
         # Check once immediately so setup does not wait for the next minute tick.
         await self.async_check()
 
-    async def _notify(self, title: str, message: str) -> bool:
-        """Deliver a notification using the configured Home Assistant notify service."""
-        try:
-            await self.hass.services.async_call(
-                "notify",
-                self.service,
-                {"title": title, "message": message},
-                blocking=True,
-            )
-            return True
-        except Exception:  # Home Assistant services can raise several service errors.
-            _LOGGER.exception(
-                "Unable to send Chaster notification using notify.%s", self.service
-            )
-            return False
+    async def _notify(self, title: str, message: str, event: str) -> bool:
+        """Deliver to the selected mobile notify service and/or HA notifications."""
+        mobile_enabled = self.options.get(CONF_NOTIFY_DAILY if event == "daily" else CONF_NOTIFY_COMPLETION, False)
+        ha_enabled = self.options.get(CONF_NOTIFY_HA_DAILY if event == "daily" else CONF_NOTIFY_HA_COMPLETION, False)
+        delivered = False
+        if mobile_enabled:
+            try:
+                await self.hass.services.async_call(
+                    "notify", self.service, {"title": title, "message": message}, blocking=True
+                )
+                delivered = True
+            except Exception:
+                _LOGGER.exception("Unable to send Chaster mobile notification using notify.%s", self.service)
+        if ha_enabled:
+            try:
+                await self.hass.services.async_call(
+                    "persistent_notification", "create",
+                    {"title": title, "message": message, "notification_id": f"{DOMAIN}_{self.entry.entry_id}_{event}"},
+                    blocking=True,
+                )
+                delivered = True
+            except Exception:
+                _LOGGER.exception("Unable to create Chaster Home Assistant notification")
+        return delivered
 
     async def async_check(self) -> None:
         """Check elapsed 24-hour milestones and newly ended locks."""
@@ -210,7 +221,7 @@ class ChasterLockNotifications:
 
                     elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                     if (
-                        self.options.get(CONF_NOTIFY_DAILY, False)
+                        (self.options.get(CONF_NOTIFY_DAILY, False) or self.options.get(CONF_NOTIFY_HA_DAILY, False))
                         and elapsed_days >= 1
                         and elapsed_days > int(record.get("last_daily_day", 0))
                     ):
@@ -218,17 +229,17 @@ class ChasterLockNotifications:
                             f"🎉 Congratulations! You've completed {elapsed_days} "
                             f"{'day' if elapsed_days == 1 else 'days'} of {name}. Keep it going!"
                         )
-                        if await self._notify("Chaster daily congratulations", message):
+                        if await self._notify("Chaster daily congratulations", message, "daily"):
                             record["last_daily_day"] = elapsed_days
                             changed = True
                 elif record.get("active_seen") and not record.get("completion_notified"):
-                    if self.options.get(CONF_NOTIFY_COMPLETION, False):
+                    if (self.options.get(CONF_NOTIFY_COMPLETION, False) or self.options.get(CONF_NOTIFY_HA_COMPLETION, False)):
                         elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                         message = (
                             f"🏆 Congratulations! {name} has ended after {elapsed_days} "
                             f"{'day' if elapsed_days == 1 else 'days'}. Well done!"
                         )
-                        if await self._notify("Chaster lock completed", message):
+                        if await self._notify("Chaster lock completed", message, "completion"):
                             record["completion_notified"] = True
                             changed = True
 
