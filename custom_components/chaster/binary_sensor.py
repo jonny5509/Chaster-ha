@@ -68,20 +68,31 @@ class ChasterReadyToUnlockBinary(_CurrentLockBinary):
 
     @staticmethod
     def _timer_expired(lock: dict) -> bool:
+        import math
+
+        now = datetime.now(timezone.utc)
         for key in ("endDate", "endAt", "unlockDate", "unlockAt"):
             value = lock.get(key)
-            if not value:
+            if value is None or isinstance(value, bool):
                 continue
             if isinstance(value, (int, float)):
-                timestamp = float(value) / 1000 if float(value) > 10000000000 else float(value)
-                return datetime.now(timezone.utc).timestamp() >= timestamp
-            if isinstance(value, str):
+                try:
+                    timestamp = float(value)
+                    if not math.isfinite(timestamp):
+                        continue
+                    if abs(timestamp) >= 10_000_000_000:
+                        timestamp /= 1000
+                    end = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+                except (OverflowError, OSError, ValueError):
+                    continue
+                return now >= end
+            if isinstance(value, str) and value.strip():
                 try:
                     parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
                     if parsed.tzinfo is None:
                         parsed = parsed.replace(tzinfo=timezone.utc)
-                    return datetime.now(timezone.utc) >= parsed
-                except ValueError:
+                    return now >= parsed.astimezone(timezone.utc)
+                except (OverflowError, OSError, ValueError):
                     continue
         return False
 
