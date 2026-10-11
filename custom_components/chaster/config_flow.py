@@ -128,10 +128,10 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_ENABLE_LOCK_ACTIONS, default=defaults.get(CONF_ENABLE_LOCK_ACTIONS, True)): bool,
                     vol.Optional(CONF_ENABLE_NOTIFICATIONS, default=defaults.get(CONF_ENABLE_NOTIFICATIONS, False)): bool,
                     vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): vol.All(str, vol.Match(r"^notify\.[a-z0-9_]+$")),
-                    vol.Optional(CONF_NOTIFY_DAILY, default=defaults.get(CONF_NOTIFY_DAILY, True)): bool,
-                    vol.Optional(CONF_NOTIFY_COMPLETION, default=defaults.get(CONF_NOTIFY_COMPLETION, True)): bool,
-                    vol.Optional(CONF_NOTIFY_WEARER, default=defaults.get(CONF_NOTIFY_WEARER, True)): bool,
-                    vol.Optional(CONF_NOTIFY_KEYHOLDER, default=defaults.get(CONF_NOTIFY_KEYHOLDER, True)): bool,
+                    vol.Optional(CONF_NOTIFY_DAILY, default=defaults.get(CONF_NOTIFY_DAILY, False)): bool,
+                    vol.Optional(CONF_NOTIFY_COMPLETION, default=defaults.get(CONF_NOTIFY_COMPLETION, False)): bool,
+                    vol.Optional(CONF_NOTIFY_WEARER, default=defaults.get(CONF_NOTIFY_WEARER, False)): bool,
+                    vol.Optional(CONF_NOTIFY_KEYHOLDER, default=defaults.get(CONF_NOTIFY_KEYHOLDER, False)): bool,
                 }
             ),
         )
