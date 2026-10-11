@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from homeassistant.components.button import ButtonEntity
@@ -115,19 +116,33 @@ class ChasterActionButton(ChasterEntity, ButtonEntity):
         if not isinstance(lock, dict):
             return None
         from datetime import datetime, timezone
+
         for key in ("endDate", "endAt", "unlockDate", "unlockAt"):
             value = lock.get(key)
-            if not value:
+            if value is None or isinstance(value, bool):
                 continue
             if isinstance(value, (int, float)):
-                return float(value) / 1000 if float(value) > 10000000000 else float(value)
-            if isinstance(value, str):
+                try:
+                    timestamp = float(value)
+                except (OverflowError, ValueError):
+                    continue
+                if not math.isfinite(timestamp):
+                    continue
+                if abs(timestamp) >= 10_000_000_000:
+                    timestamp /= 1000
+                try:
+                    datetime.fromtimestamp(timestamp, tz=timezone.utc)
+                except (OverflowError, OSError, ValueError):
+                    continue
+                return timestamp
+            if isinstance(value, str) and value.strip():
                 try:
                     parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
                     if parsed.tzinfo is None:
                         parsed = parsed.replace(tzinfo=timezone.utc)
-                    return parsed.timestamp()
-                except ValueError:
+                    timestamp = parsed.timestamp()
+                    return timestamp if math.isfinite(timestamp) else None
+                except (OverflowError, OSError, ValueError):
                     continue
         return None
 
