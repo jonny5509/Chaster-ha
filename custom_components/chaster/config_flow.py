@@ -6,6 +6,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.helpers import aiohttp_client
 
 from .api import ChasterApi, ChasterApiError
@@ -94,7 +95,8 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
         """Return Chaster's role and feature settings flow."""
         return ChasterOptionsFlow()
 
@@ -102,7 +104,7 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class ChasterOptionsFlow(config_entries.OptionsFlow):
     """Configure role-specific and optional Chaster features."""
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None):
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> Any:
         """Handle integration options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
