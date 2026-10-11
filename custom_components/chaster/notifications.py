@@ -223,7 +223,7 @@ class ChasterLockNotifications:
 
                     elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                     if (
-                        (self.options.get(CONF_NOTIFY_DAILY, False) or self.options.get(CONF_NOTIFY_HA_DAILY, False))
+                        ((self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_DAILY, False)) or (self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_HA_DAILY, False)))
                         and elapsed_days >= 1
                         and elapsed_days > int(record.get("last_daily_day", 0))
                     ):
@@ -235,7 +235,7 @@ class ChasterLockNotifications:
                             record["last_daily_day"] = elapsed_days
                             changed = True
                 elif record.get("active_seen") and not record.get("completion_notified"):
-                    if (self.options.get(CONF_NOTIFY_COMPLETION, False) or self.options.get(CONF_NOTIFY_HA_COMPLETION, False)):
+                    if ((self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_COMPLETION, False)) or (self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_HA_COMPLETION, False))):
                         elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                         message = (
                             f"🏆 Congratulations! {name} has ended after {elapsed_days} "
