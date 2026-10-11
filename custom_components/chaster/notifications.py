@@ -13,6 +13,8 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     CONF_ENABLE_NOTIFICATIONS,
+    CONF_ENABLE_PHONE_NOTIFICATIONS,
+    CONF_ENABLE_HA_NOTIFICATIONS,
     CONF_NOTIFICATION_SERVICE,
     CONF_NOTIFY_COMPLETION,
     CONF_NOTIFY_DAILY,
@@ -156,7 +158,7 @@ class ChasterLockNotifications:
         mobile_enabled = self.options.get(CONF_NOTIFY_DAILY if event == "daily" else CONF_NOTIFY_COMPLETION, False)
         ha_enabled = self.options.get(CONF_NOTIFY_HA_DAILY if event == "daily" else CONF_NOTIFY_HA_COMPLETION, False)
         delivered = False
-        if mobile_enabled:
+        if mobile_enabled and self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False):
             try:
                 await self.hass.services.async_call(
                     "notify", self.service, {"title": title, "message": message}, blocking=True
@@ -164,7 +166,7 @@ class ChasterLockNotifications:
                 delivered = True
             except Exception:
                 _LOGGER.exception("Unable to send Chaster mobile notification using notify.%s", self.service)
-        if ha_enabled:
+        if ha_enabled and self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False):
             try:
                 await self.hass.services.async_call(
                     "persistent_notification", "create",
@@ -221,7 +223,7 @@ class ChasterLockNotifications:
 
                     elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                     if (
-                        (self.options.get(CONF_NOTIFY_DAILY, False) or self.options.get(CONF_NOTIFY_HA_DAILY, False))
+                        ((self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_DAILY, False)) or (self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_HA_DAILY, False)))
                         and elapsed_days >= 1
                         and elapsed_days > int(record.get("last_daily_day", 0))
                     ):
@@ -233,7 +235,7 @@ class ChasterLockNotifications:
                             record["last_daily_day"] = elapsed_days
                             changed = True
                 elif record.get("active_seen") and not record.get("completion_notified"):
-                    if (self.options.get(CONF_NOTIFY_COMPLETION, False) or self.options.get(CONF_NOTIFY_HA_COMPLETION, False)):
+                    if ((self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_COMPLETION, False)) or (self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_HA_COMPLETION, False))):
                         elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                         message = (
                             f"🏆 Congratulations! {name} has ended after {elapsed_days} "
@@ -253,7 +255,7 @@ async def async_setup_notifications(
     coordinator: ChasterCoordinator,
 ) -> None:
     """Set up notification tracking when enabled in the integration options."""
-    if not entry.options.get(CONF_ENABLE_NOTIFICATIONS, False):
+    if not (entry.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) or entry.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False)):
         return
 
     service = entry.options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)
