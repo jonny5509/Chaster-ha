@@ -218,7 +218,7 @@ class ChasterLockNotifications:
                             f"🎉 Congratulations! You've completed {elapsed_days} "
                             f"{'day' if elapsed_days == 1 else 'days'} of {name}. Keep it going!"
                         )
-                        if await self._notify("Chaster daily congratulations", message):
+                        if await self._notify("Daily congratulations", message):
                             record["last_daily_day"] = elapsed_days
                             changed = True
                 elif record.get("active_seen") and not record.get("completion_notified"):
@@ -228,7 +228,7 @@ class ChasterLockNotifications:
                             f"🏆 Congratulations! {name} has ended after {elapsed_days} "
                             f"{'day' if elapsed_days == 1 else 'days'}. Well done!"
                         )
-                        if await self._notify("Chaster lock completed", message):
+                        if await self._notify("Session completed", message):
                             record["completion_notified"] = True
                             changed = True
 
