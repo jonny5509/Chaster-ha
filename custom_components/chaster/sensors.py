@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import math
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
@@ -30,14 +31,25 @@ def _name(item: Any) -> str:
 
 
 def _number(value: Any) -> int | None:
+    """Convert a numeric API value without allowing NaN/infinity to raise."""
     if isinstance(value, bool):
         return None
-    if isinstance(value, (int, float)):
-        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return None
+        try:
+            return int(value)
+        except (OverflowError, ValueError):
+            return None
     if isinstance(value, str):
         try:
-            return int(float(value.strip()))
-        except (TypeError, ValueError):
+            number = float(value.strip())
+            if not math.isfinite(number):
+                return None
+            return int(number)
+        except (OverflowError, TypeError, ValueError):
             return None
     return None
 
