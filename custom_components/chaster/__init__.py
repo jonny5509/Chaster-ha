@@ -18,6 +18,13 @@ from .const import (
     CONF_ENABLE_LOCK_ACTIONS,
     CONF_ENABLE_MESSAGING,
     CONF_ENABLE_SHARED_LOCKS,
+    CONF_ENABLE_NOTIFICATIONS,
+    CONF_NOTIFICATION_SERVICE,
+    CONF_NOTIFY_DAILY,
+    CONF_NOTIFY_COMPLETION,
+    CONF_NOTIFY_HA_DAILY,
+    CONF_NOTIFY_HA_COMPLETION,
+    DEFAULT_NOTIFICATION_SERVICE,
     CONF_ROLE_MODE,
     CONF_SCAN_INTERVAL,
     CONF_TOKEN,
@@ -107,6 +114,26 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 return coordinator.api, coordinator
         raise HomeAssistantError(f"Chaster lock {lock_id} is not known to this Home Assistant instance")
 
+    async def test_notification(call: ServiceCall) -> None:
+        entries = hass.config_entries.async_entries(DOMAIN)
+        entry = next((item for item in entries if item.options.get(CONF_ENABLE_NOTIFICATIONS, False)), None)
+        if entry is None:
+            raise HomeAssistantError("Enable notifications in Chaster integration options first")
+        options = entry.options
+        mobile = options.get(CONF_NOTIFY_DAILY, False) or options.get(CONF_NOTIFY_COMPLETION, False)
+        persistent = options.get(CONF_NOTIFY_HA_DAILY, False) or options.get(CONF_NOTIFY_HA_COMPLETION, False)
+        if not mobile and not persistent:
+            raise HomeAssistantError("Enable at least one test destination in Chaster notification options")
+        title = "Chaster test notification"
+        message = "This is a test notification. Your Chaster notification delivery is configured."
+        if mobile:
+            service = str(options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE))
+            if not re.fullmatch(r"notify\\.[a-z0-9_]+", service):
+                raise HomeAssistantError("Select a valid mobile notification service in Chaster options")
+            await hass.services.async_call("notify", service.split(".", 1)[1], {"title": title, "message": message}, blocking=True)
+        if persistent:
+            await hass.services.async_call("persistent_notification", "create", {"title": title, "message": message, "notification_id": f"chaster_test_{entry.entry_id}"}, blocking=True)
+
     async def api_request(call: ServiceCall) -> None:
         coordinators = _coordinators(hass)
         if not coordinators:
@@ -178,6 +205,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         result = await coordinator.api.request("POST", path, json=call.data["body"])
         hass.bus.async_fire(f"{DOMAIN}_message", {"result": result})
 
+    hass.services.async_register(DOMAIN, "test_notification", test_notification, schema=vol.Schema({}))
     hass.services.async_register(
         DOMAIN,
         "api_request",
@@ -308,7 +336,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     hass.data[DOMAIN].pop(entry.entry_id, None)
     if unload_ok and not _coordinators(hass):
-        for service in ("api_request", "lock_action", "add_time", "remove_time", "send_message"):
+        for service in ("api_request", "lock_action", "add_time", "remove_time", "send_message", "test_notification"):
             if hass.services.has_service(DOMAIN, service):
                 hass.services.async_remove(DOMAIN, service)
     return unload_ok
