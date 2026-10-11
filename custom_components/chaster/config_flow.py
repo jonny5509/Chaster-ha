@@ -70,7 +70,7 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 session = aiohttp_client.async_get_clientsession(self.hass)
                 try:
-                    await ChasterApi(session, token=token).profile()
+                    profile = await ChasterApi(session, token=token).profile()
                 except ChasterApiError as err:
                     message = str(err)
                     if "HTTP 401" in message or "HTTP 403" in message:
@@ -84,7 +84,13 @@ class ChasterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         )
                         await self.hass.config_entries.async_reload(reauth_entry.entry_id)
                         return self.async_abort(reason="reauth_successful")
-                    return self.async_create_entry(title="Chaster - jonny5509", data={CONF_TOKEN: token})
+                    username = (
+                        profile.get("username")
+                        if isinstance(profile, dict)
+                        else None
+                    )
+                    title = f"Chaster - {username}" if isinstance(username, str) and username.strip() else "Chaster"
+                    return self.async_create_entry(title=title, data={CONF_TOKEN: token})
 
         step_id = "reauth_confirm" if reauth_entry is not None else "user"
         return self.async_show_form(
