@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.5] - 2026-10-11
+
+### Added
+- Added the `chaster.test_notification` service to verify the configured Home Assistant notification target, with an optional custom test message.
+- Test notifications can be sent even when automatic Chaster notifications are disabled.
+
 ## [2.3.4] - 2026-10-11
 
 ### Fixed
