@@ -43,7 +43,62 @@ jobs:
         run: |
           rm -f chaster.zip
           cd custom_components/chaster
-          zip -r ../../chaster.zip .
+          zip -qr ../../chaster.zip .
+
+      - name: Validate release ZIP
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import zipfile
+
+          tag = os.environ["RELEASE_TAG"].removeprefix("v")
+          required_files = {
+              "manifest.json",
+              "config_flow.py",
+              "strings.json",
+              "translations/en.json",
+              "brand/icon.png",
+          }
+
+          with zipfile.ZipFile("chaster.zip") as archive:
+              bad_file = archive.testzip()
+              if bad_file:
+                  raise SystemExit(f"Corrupt file in release ZIP: {bad_file}")
+
+              # zip may store paths with a leading "./"; normalize those while
+              # preserving the original member names for reading files.
+              members = {
+                  name.removeprefix("./"): name
+                  for name in archive.namelist()
+                  if not name.endswith("/")
+              }
+              missing = sorted(required_files - members.keys())
+              if missing:
+                  raise SystemExit(
+                      "Release ZIP is missing required integration files: "
+                      + ", ".join(missing)
+                  )
+
+              if any(name.startswith("chaster/") for name in members):
+                  raise SystemExit(
+                      "Release ZIP must contain integration files at its root, "
+                      "not inside a chaster/ directory."
+                  )
+
+              manifest = json.loads(archive.read(members["manifest.json"]))
+              if manifest.get("domain") != "chaster":
+                  raise SystemExit("Release ZIP manifest has the wrong domain.")
+              if manifest.get("version") != tag:
+                  raise SystemExit(
+                      f"Manifest version {manifest.get('version')!r} "
+                      f"does not match release tag {tag!r}."
+                  )
+
+          print(f"Validated chaster.zip for version {tag}")
+          PY
 
       - name: Upload ZIP to release
         uses: softprops/action-gh-release@v3
