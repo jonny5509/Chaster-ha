@@ -68,21 +68,27 @@ jobs:
               if bad_file:
                   raise SystemExit(f"Corrupt file in release ZIP: {bad_file}")
 
-              names = set(archive.namelist())
-              missing = sorted(required_files - names)
+              # zip may store paths with a leading "./"; normalize those while
+              # preserving the original member names for reading files.
+              members = {
+                  name.removeprefix("./"): name
+                  for name in archive.namelist()
+                  if not name.endswith("/")
+              }
+              missing = sorted(required_files - members.keys())
               if missing:
                   raise SystemExit(
                       "Release ZIP is missing required integration files: "
                       + ", ".join(missing)
                   )
 
-              if any(name.startswith("chaster/") for name in names):
+              if any(name.startswith("chaster/") for name in members):
                   raise SystemExit(
                       "Release ZIP must contain integration files at its root, "
                       "not inside a chaster/ directory."
                   )
 
-              manifest = json.loads(archive.read("manifest.json"))
+              manifest = json.loads(archive.read(members["manifest.json"]))
               if manifest.get("domain") != "chaster":
                   raise SystemExit("Release ZIP manifest has the wrong domain.")
               if manifest.get("version") != tag:
