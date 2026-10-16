@@ -38,10 +38,8 @@
           "enable_shared_locks": "Enable shared locks",
           "enable_messaging": "Enable messaging",
           "enable_lock_actions": "Enable lock actions",
-          "enable_notifications": "Enable Chaster lock notifications",
-          "notification_service": "Notification service (for example notify.mobile_app_your_phone)",
-          "notify_daily_congratulations": "Send congratulations every 24 hours",
-          "notify_lock_completion": "Send congratulations when a lock ends",
+          "notification_destination": "Notification destination",
+          "notification_targets": "Phones to notify",
           "notify_wearer_locks": "Notify for wearer (My lock) sessions",
           "notify_keyholder_locks": "Notify for keyholder sessions"
         }
