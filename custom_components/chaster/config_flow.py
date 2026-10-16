@@ -16,6 +16,8 @@ from .const import (
     CONF_ENABLE_NOTIFICATIONS,
     CONF_ENABLE_PHONE_NOTIFICATIONS,
     CONF_ENABLE_HA_NOTIFICATIONS,
+    CONF_NOTIFICATION_DESTINATION,
+    CONF_NOTIFICATION_TARGETS,
     CONF_NOTIFICATION_SERVICE,
     CONF_NOTIFY_DAILY,
     CONF_NOTIFY_COMPLETION,
@@ -120,12 +122,6 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         defaults = self.config_entry.options
-        notify_services = sorted(self.hass.services.async_services().get("notify", {}))
-        if "notify" not in notify_services:
-            notify_services.insert(0, "notify")
-        service_options = [f"notify.{name}" for name in notify_services]
-        if defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE) not in service_options:
-            service_options.append(defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE))
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
@@ -136,13 +132,30 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_ENABLE_SHARED_LOCKS, default=defaults.get(CONF_ENABLE_SHARED_LOCKS, True)): bool,
                     vol.Optional(CONF_ENABLE_MESSAGING, default=defaults.get(CONF_ENABLE_MESSAGING, True)): bool,
                     vol.Optional(CONF_ENABLE_LOCK_ACTIONS, default=defaults.get(CONF_ENABLE_LOCK_ACTIONS, True)): bool,
-                    vol.Optional(CONF_ENABLE_PHONE_NOTIFICATIONS, default=defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)): bool,
-                    vol.Optional(CONF_ENABLE_HA_NOTIFICATIONS, default=defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)): bool,
-                    vol.Optional(CONF_NOTIFICATION_SERVICE, default=defaults.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)): selector.SelectSelector(
+                    vol.Optional(
+                        CONF_NOTIFICATION_DESTINATION,
+                        default=defaults.get(
+                            CONF_NOTIFICATION_DESTINATION,
+                            "both" if defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
+                            else "phone" if defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
+                            else "ha" if defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
+                            else "ha",
+                        ),
+                    ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=service_options,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
+                            options=[
+                                {"label": "Home Assistant", "value": "ha"},
+                                {"label": "Phone notification(s)", "value": "phone"},
+                                {"label": "Home Assistant and phone", "value": "both"},
+                            ],
+                            mode=selector.SelectSelectorMode.LIST,
                         )
+                    ),
+                    vol.Optional(
+                        CONF_NOTIFICATION_TARGETS,
+                        default=defaults.get(CONF_NOTIFICATION_TARGETS, []),
+                    ): selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="notify", multiple=True)
                     ),
                     vol.Optional(CONF_NOTIFY_HA_DAILY, default=defaults.get(CONF_NOTIFY_HA_DAILY, False)): bool,
                     vol.Optional(CONF_NOTIFY_HA_COMPLETION, default=defaults.get(CONF_NOTIFY_HA_COMPLETION, False)): bool,
