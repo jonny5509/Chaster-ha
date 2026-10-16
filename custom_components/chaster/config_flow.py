@@ -139,16 +139,17 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                             "both" if defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
                             else "phone" if defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
                             else "ha" if defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
-                            else "ha",
+                            else "none",
                         ),
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=[
-                                {"label": "Home Assistant", "value": "ha"},
-                                {"label": "Phone notification(s)", "value": "phone"},
+                                {"label": "None", "value": "none"},
+                                {"label": "Home Assistant notifications", "value": "ha"},
+                                {"label": "Phone notifications", "value": "phone"},
                                 {"label": "Home Assistant and phone", "value": "both"},
                             ],
-                            mode=selector.SelectSelectorMode.LIST,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
                     vol.Optional(
@@ -157,10 +158,6 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                     ): selector.EntitySelector(
                         selector.EntitySelectorConfig(domain="notify", multiple=True)
                     ),
-                    vol.Optional(CONF_NOTIFY_HA_DAILY, default=defaults.get(CONF_NOTIFY_HA_DAILY, False)): bool,
-                    vol.Optional(CONF_NOTIFY_HA_COMPLETION, default=defaults.get(CONF_NOTIFY_HA_COMPLETION, False)): bool,
-                    vol.Optional(CONF_NOTIFY_DAILY, default=defaults.get(CONF_NOTIFY_DAILY, False)): bool,
-                    vol.Optional(CONF_NOTIFY_COMPLETION, default=defaults.get(CONF_NOTIFY_COMPLETION, False)): bool,
                     vol.Optional(CONF_NOTIFY_WEARER, default=defaults.get(CONF_NOTIFY_WEARER, False)): bool,
                     vol.Optional(CONF_NOTIFY_KEYHOLDER, default=defaults.get(CONF_NOTIFY_KEYHOLDER, False)): bool,
                 }
