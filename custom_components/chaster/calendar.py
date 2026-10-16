@@ -9,6 +9,7 @@ from typing import Any
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from .coordinator import ChasterCoordinator
 from .entity import ChasterEntity
@@ -179,16 +180,17 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
             if start is None or end is None or end <= start:
                 continue
 
-            title = (
-                "Chaster — Active session"
-                if self.coordinator.is_active(lock)
-                else str(
+            is_active = self.coordinator.is_active(lock)
+            if is_active:
+                local_start = dt_util.as_local(start)
+                title = f"Chaster — Active session — started {local_start:%H:%M}"
+            else:
+                title = str(
                     lock.get("customWearerName")
                     or lock.get("title")
                     or lock.get("name")
                     or f"Chaster session {lock_id}"
                 )
-            )
             status = lock.get("status") or lock.get("state") or "unknown"
             role_label = "My lock" if self.role == "wearer" else "Keyholder lock"
             events_by_id[lock_id] = CalendarEvent(
