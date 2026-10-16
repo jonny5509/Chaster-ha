@@ -183,7 +183,13 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
             is_active = self.coordinator.is_active(lock)
             if is_active:
                 local_start = dt_util.as_local(start)
-                title = f"Chaster — Active session — started {local_start:%H:%M}"
+                local_now = dt_util.as_local(now)
+                session_day = max(1, (local_now.date() - local_start.date()).days + 1)
+                day_label = f" — Day {session_day}" if session_day > 1 else ""
+                title = (
+                    f"Chaster — Active session{day_label} — "
+                    f"started {local_start:%H:%M}"
+                )
             else:
                 title = str(
                     lock.get("customWearerName")
