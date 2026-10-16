@@ -48,6 +48,12 @@ config_entries.ConfigEntry = type("ConfigEntry", (), {})  # type: ignore[attr-de
 core = _module("homeassistant.core")
 core.HomeAssistant = type("HomeAssistant", (), {})  # type: ignore[attr-defined]
 
+ha_util = _module("homeassistant.util")
+ha_util.__path__ = []  # type: ignore[attr-defined]
+dt_util = _module("homeassistant.util.dt")
+dt_util.as_local = lambda value: value.astimezone(timezone.utc)  # type: ignore[attr-defined]
+sys.modules[dt_util.__name__] = dt_util
+
 package_name = "custom_components.chaster"
 if package_name not in sys.modules:
     package = types.ModuleType(package_name)
@@ -197,7 +203,10 @@ class CalendarTimerDateTests(unittest.TestCase):
         self.assertEqual(first_event.end, datetime(2030, 1, 2, tzinfo=timezone.utc))
         self.assertEqual(second_event.end, datetime(2030, 1, 4, tzinfo=timezone.utc))
         self.assertEqual(first_event.uid, second_event.uid)
-        self.assertEqual(second_event.summary, "Updated title")
+        self.assertEqual(
+            second_event.summary,
+            "Chaster — Active session — started 00:00",
+        )
 
     def test_duplicate_lock_ids_produce_one_event_and_fresh_record_wins(self):
         older = {
