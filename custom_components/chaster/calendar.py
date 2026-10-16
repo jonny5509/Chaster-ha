@@ -179,11 +179,15 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
             if start is None or end is None or end <= start:
                 continue
 
-            title = str(
-                lock.get("customWearerName")
-                or lock.get("title")
-                or lock.get("name")
-                or f"Chaster session {lock_id}"
+            title = (
+                "Chaster — Active session"
+                if self.coordinator.is_active(lock)
+                else str(
+                    lock.get("customWearerName")
+                    or lock.get("title")
+                    or lock.get("name")
+                    or f"Chaster session {lock_id}"
+                )
             )
             status = lock.get("status") or lock.get("state") or "unknown"
             role_label = "My lock" if self.role == "wearer" else "Keyholder lock"
