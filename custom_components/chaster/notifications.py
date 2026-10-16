@@ -228,8 +228,8 @@ class ChasterLockNotifications:
                         and elapsed_days > int(record.get("last_daily_day", 0))
                     ):
                         message = (
-                            f"🎉 Congratulations! You've completed {elapsed_days} "
-                            f"{'day' if elapsed_days == 1 else 'days'} of {name}. Keep it going!"
+                            f"🎉 Congratulations! You've completed day number {elapsed_days} "
+                            f"of {name}. Keep it going!"
                         )
                         if await self._notify("Chaster daily congratulations", message, "daily"):
                             record["last_daily_day"] = elapsed_days
@@ -238,7 +238,7 @@ class ChasterLockNotifications:
                     if ((self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_COMPLETION, False)) or (self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_HA_COMPLETION, False))):
                         elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                         message = (
-                            f"🏆 Congratulations! {name} has ended after {elapsed_days} "
+                            f"🏆 Congratulations! You've completed {name} after {elapsed_days} "
                             f"{'day' if elapsed_days == 1 else 'days'}. Well done!"
                         )
                         if await self._notify("Chaster lock completed", message, "completion"):
