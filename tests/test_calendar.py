@@ -208,6 +208,28 @@ class CalendarTimerDateTests(unittest.TestCase):
             "Chaster — Active session — started 00:00",
         )
 
+    def test_active_session_title_includes_day_after_first_local_day(self):
+        from unittest.mock import patch
+
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                current = cls(2030, 1, 2, 12, 0, tzinfo=timezone.utc)
+                return current.astimezone(tz) if tz else current.replace(tzinfo=None)
+
+        calendar = _calendar({"locks": [{
+            "id": "multi-day",
+            "startDate": "2030-01-01T13:38:00Z",
+            "endDate": "2030-01-04T13:38:00Z",
+            "status": "locked",
+        }]})
+        with patch.object(calendar_integration, "datetime", FixedDateTime):
+            event = calendar._events()[0]
+        self.assertEqual(
+            event.summary,
+            "Chaster — Active session — Day 2 — started 13:38",
+        )
+
     def test_duplicate_lock_ids_produce_one_event_and_fresh_record_wins(self):
         older = {
             "id": "same-lock",
