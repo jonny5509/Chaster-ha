@@ -12,9 +12,10 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 
 from .const import (
-    CONF_ENABLE_NOTIFICATIONS,
     CONF_ENABLE_PHONE_NOTIFICATIONS,
     CONF_ENABLE_HA_NOTIFICATIONS,
+    CONF_NOTIFICATION_DESTINATION,
+    CONF_NOTIFICATION_TARGETS,
     CONF_NOTIFICATION_SERVICE,
     CONF_NOTIFY_COMPLETION,
     CONF_NOTIFY_DAILY,
@@ -122,13 +123,13 @@ class ChasterLockNotifications:
         self.entry = entry
         self.coordinator = coordinator
         self.options = entry.options
-        configured_service = str(
-            self.options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)
-        )
-        if re.fullmatch(r"notify\.[a-z0-9_]+", configured_service):
-            self.service = configured_service.split(".", 1)[1]
-        else:
-            self.service = DEFAULT_NOTIFICATION_SERVICE.split(".", 1)[1]
+        configured_service = str(self.options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE))
+        self.legacy_service = configured_service.split(".", 1)[1] if re.fullmatch(r"notify\.[a-z0-9_]+", configured_service) else DEFAULT_NOTIFICATION_SERVICE.split(".", 1)[1]
+        self.destination = self.options.get(CONF_NOTIFICATION_DESTINATION)
+        if self.destination not in {"none", "ha", "phone", "both"}:
+            old_phone = self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
+            old_ha = self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
+            self.destination = "both" if old_phone and old_ha else "phone" if old_phone else "ha" if old_ha else "none"
         self.store = Store(hass, 1, f"{DOMAIN}_notifications_{entry.entry_id}")
         self.state: dict[str, dict[str, Any]] = {}
 
@@ -155,18 +156,26 @@ class ChasterLockNotifications:
 
     async def _notify(self, title: str, message: str, event: str) -> bool:
         """Deliver to the selected mobile notify service and/or HA notifications."""
-        mobile_enabled = self.options.get(CONF_NOTIFY_DAILY if event == "daily" else CONF_NOTIFY_COMPLETION, False)
-        ha_enabled = self.options.get(CONF_NOTIFY_HA_DAILY if event == "daily" else CONF_NOTIFY_HA_COMPLETION, False)
         delivered = False
-        if mobile_enabled and self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False):
-            try:
-                await self.hass.services.async_call(
-                    "notify", self.service, {"title": title, "message": message}, blocking=True
-                )
-                delivered = True
-            except Exception:
-                _LOGGER.exception("Unable to send Chaster mobile notification using notify.%s", self.service)
-        if ha_enabled and self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False):
+        if self.destination in {"phone", "both"}:
+            targets = self.options.get(CONF_NOTIFICATION_TARGETS, [])
+            services = []
+            if isinstance(targets, list):
+                for target in targets:
+                    if not isinstance(target, str):
+                        continue
+                    service = target.split(".", 1)[1] if target.startswith("notify.") else target
+                    if re.fullmatch(r"[a-z0-9_]+", service) and service not in services:
+                        services.append(service)
+            if not services:
+                services = [self.legacy_service]
+            for service in services:
+                try:
+                    await self.hass.services.async_call("notify", service, {"title": title, "message": message}, blocking=True)
+                    delivered = True
+                except Exception:
+                    _LOGGER.exception("Unable to send Chaster phone notification using notify.%s", service)
+        if self.destination in {"ha", "both"}:
             try:
                 await self.hass.services.async_call(
                     "persistent_notification", "create",
@@ -223,7 +232,7 @@ class ChasterLockNotifications:
 
                     elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                     if (
-                        ((self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_DAILY, False)) or (self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_HA_DAILY, False)))
+                        self.destination != "none"
                         and elapsed_days >= 1
                         and elapsed_days > int(record.get("last_daily_day", 0))
                     ):
@@ -235,7 +244,7 @@ class ChasterLockNotifications:
                             record["last_daily_day"] = elapsed_days
                             changed = True
                 elif record.get("active_seen") and not record.get("completion_notified"):
-                    if ((self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_COMPLETION, False)) or (self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False) and self.options.get(CONF_NOTIFY_HA_COMPLETION, False))):
+                    if self.destination != "none":
                         elapsed_days = max(0, int((now - start).total_seconds() // 86400))
                         message = (
                             f"🏆 Congratulations! You've completed {name} after {elapsed_days} "
@@ -255,12 +264,12 @@ async def async_setup_notifications(
     coordinator: ChasterCoordinator,
 ) -> None:
     """Set up notification tracking when enabled in the integration options."""
-    if not (entry.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) or entry.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False)):
+    options = entry.options
+    destination = options.get(CONF_NOTIFICATION_DESTINATION)
+    if destination not in {"none", "ha", "phone", "both"}:
+        old_phone = options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
+        old_ha = options.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
+        destination = "both" if old_phone and old_ha else "phone" if old_phone else "ha" if old_ha else "none"
+    if destination == "none":
         return
-
-    service = entry.options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE)
-    if not isinstance(service, str) or not re.fullmatch(r"notify\.[a-z0-9_]+", service):
-        _LOGGER.warning("Chaster notifications are enabled but the notify service is invalid")
-        return
-
     await ChasterLockNotifications(hass, entry, coordinator).async_start()
