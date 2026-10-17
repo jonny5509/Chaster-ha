@@ -221,10 +221,11 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                     )
                     day_key = segment_local_start.date().isoformat()
                     event_uid = f"chaster-{self.role}-{lock_id}-{day_key}"
+                    event_day = segment_local_start.date()
                     events_by_id[event_uid] = CalendarEvent(
                         summary=title,
-                        start=segment_start,
-                        end=segment_end,
+                        start=event_day,
+                        end=event_day + timedelta(days=1),
                         description=description,
                         uid=event_uid,
                     )
@@ -244,23 +245,42 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                     uid=event_uid,
                 )
 
-        return sorted(events_by_id.values(), key=lambda event: event.start)
+        return sorted(
+            events_by_id.values(),
+            key=lambda event: (
+                event.start
+                if isinstance(event.start, datetime)
+                else datetime.combine(event.start, datetime.min.time(), tzinfo=timezone.utc)
+            ),
+        )
 
     @property
     def event(self) -> CalendarEvent | None:
         """Return the next ongoing or upcoming session for this role."""
         now = datetime.now(timezone.utc)
-        return next((event for event in self._events() if event.end > now), None)
+        today = dt_util.as_local(now).date()
+        for event in self._events():
+            if isinstance(event.end, datetime):
+                if event.end > now:
+                    return event
+            elif event.end > today:
+                return event
+        return None
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
         """Return role-specific sessions overlapping the requested calendar range."""
-        return [
-            event
-            for event in self._events()
-            if event.start < end_date and event.end > start_date
-        ]
+        range_start = dt_util.as_local(start_date).date()
+        range_end = dt_util.as_local(end_date).date()
+        events = []
+        for event in self._events():
+            if isinstance(event.start, datetime):
+                if event.start < end_date and event.end > start_date:
+                    events.append(event)
+            elif event.start < range_end and event.end > range_start:
+                events.append(event)
+        return events
 
 
 async def async_setup_entry(
