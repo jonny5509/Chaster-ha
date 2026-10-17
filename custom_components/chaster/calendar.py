@@ -181,15 +181,53 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                 continue
 
             is_active = self.coordinator.is_active(lock)
+            status = lock.get("status") or lock.get("state") or "unknown"
+            role_label = "My lock" if self.role == "wearer" else "Keyholder lock"
+            description = (
+                f"{role_label} session\nStatus: {status}\nLock ID: {lock_id}"
+            )
+
             if is_active:
+                # Split active sessions at local midnight so each calendar day
+                # has its own title. Use local dates for boundaries to respect
+                # the Home Assistant timezone and daylight-saving transitions.
                 local_start = dt_util.as_local(start)
-                local_now = dt_util.as_local(now)
-                session_day = max(1, (local_now.date() - local_start.date()).days + 1)
-                day_label = f" — Day {session_day}" if session_day > 1 else ""
-                title = (
-                    f"Chaster — Active session{day_label} — "
-                    f"started {local_start:%H:%M}"
+                local_tz = local_start.tzinfo
+                segments: list[tuple[datetime, datetime]] = []
+                segment_start = start
+                next_day = local_start.date() + timedelta(days=1)
+                boundary = datetime.combine(
+                    next_day, datetime.min.time(), tzinfo=local_tz
                 )
+                while boundary.astimezone(timezone.utc) < end:
+                    boundary_utc = boundary.astimezone(timezone.utc)
+                    if boundary_utc > segment_start:
+                        segments.append((segment_start, boundary_utc))
+                    segment_start = boundary_utc
+                    next_day += timedelta(days=1)
+                    boundary = datetime.combine(
+                        next_day, datetime.min.time(), tzinfo=local_tz
+                    )
+                if end > segment_start:
+                    segments.append((segment_start, end))
+
+                for index, (segment_start, segment_end) in enumerate(segments):
+                    segment_local_start = dt_util.as_local(segment_start)
+                    title = (
+                        f"Chaster — Active session — "
+                        f"started {local_start:%H:%M}"
+                        if index == 0
+                        else "Chaster — Active session"
+                    )
+                    day_key = segment_local_start.date().isoformat()
+                    event_uid = f"chaster-{self.role}-{lock_id}-{day_key}"
+                    events_by_id[event_uid] = CalendarEvent(
+                        summary=title,
+                        start=segment_start,
+                        end=segment_end,
+                        description=description,
+                        uid=event_uid,
+                    )
             else:
                 title = str(
                     lock.get("customWearerName")
@@ -197,15 +235,14 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
                     or lock.get("name")
                     or f"Chaster session {lock_id}"
                 )
-            status = lock.get("status") or lock.get("state") or "unknown"
-            role_label = "My lock" if self.role == "wearer" else "Keyholder lock"
-            events_by_id[lock_id] = CalendarEvent(
-                summary=title,
-                start=start,
-                end=end,
-                description=f"{role_label} session\nStatus: {status}\nLock ID: {lock_id}",
-                uid=f"chaster-{self.role}-{lock_id}",
-            )
+                event_uid = f"chaster-{self.role}-{lock_id}"
+                events_by_id[event_uid] = CalendarEvent(
+                    summary=title,
+                    start=start,
+                    end=end,
+                    description=description,
+                    uid=event_uid,
+                )
 
         return sorted(events_by_id.values(), key=lambda event: event.start)
 

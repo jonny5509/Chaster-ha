@@ -208,7 +208,7 @@ class CalendarTimerDateTests(unittest.TestCase):
             "Chaster — Active session — started 00:00",
         )
 
-    def test_active_session_title_includes_day_after_first_local_day(self):
+    def test_active_session_is_split_into_daily_events(self):
         from unittest.mock import patch
 
         class FixedDateTime(datetime):
@@ -224,11 +224,25 @@ class CalendarTimerDateTests(unittest.TestCase):
             "status": "locked",
         }]})
         with patch.object(calendar_integration, "datetime", FixedDateTime):
-            event = calendar._events()[0]
+            events = calendar._events()
+
+        self.assertEqual(len(events), 4)
         self.assertEqual(
-            event.summary,
-            "Chaster — Active session — Day 2 — started 13:38",
+            [event.summary for event in events],
+            [
+                "Chaster — Active session — started 13:38",
+                "Chaster — Active session",
+                "Chaster — Active session",
+                "Chaster — Active session",
+            ],
         )
+        self.assertEqual(events[0].start, datetime(2030, 1, 1, 13, 38, tzinfo=timezone.utc))
+        self.assertEqual(events[0].end, datetime(2030, 1, 2, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(events[1].start, events[0].end)
+        self.assertEqual(events[1].end, datetime(2030, 1, 3, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(events[2].end, datetime(2030, 1, 4, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(events[3].end, datetime(2030, 1, 4, 13, 38, tzinfo=timezone.utc))
+        self.assertEqual(len({event.uid for event in events}), 4)
 
     def test_duplicate_lock_ids_produce_one_event_and_fresh_record_wins(self):
         older = {
