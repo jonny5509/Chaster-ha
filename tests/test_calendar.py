@@ -236,12 +236,13 @@ class CalendarTimerDateTests(unittest.TestCase):
                 "Chaster — Active session",
             ],
         )
-        self.assertEqual(events[0].start, datetime(2030, 1, 1, 13, 38, tzinfo=timezone.utc))
-        self.assertEqual(events[0].end, datetime(2030, 1, 2, 0, 0, tzinfo=timezone.utc))
-        self.assertEqual(events[1].start, events[0].end)
-        self.assertEqual(events[1].end, datetime(2030, 1, 3, 0, 0, tzinfo=timezone.utc))
-        self.assertEqual(events[2].end, datetime(2030, 1, 4, 0, 0, tzinfo=timezone.utc))
-        self.assertEqual(events[3].end, datetime(2030, 1, 4, 13, 38, tzinfo=timezone.utc))
+        self.assertEqual(events[0].start.isoformat(), "2030-01-01")
+        self.assertEqual(events[0].end.isoformat(), "2030-01-02")
+        self.assertEqual(events[1].start.isoformat(), "2030-01-02")
+        self.assertEqual(events[1].end.isoformat(), "2030-01-03")
+        self.assertEqual(events[2].end.isoformat(), "2030-01-04")
+        self.assertEqual(events[3].start.isoformat(), "2030-01-04")
+        self.assertEqual(events[3].end.isoformat(), "2030-01-05")
         self.assertEqual(len({event.uid for event in events}), 4)
 
     def test_duplicate_lock_ids_produce_one_event_and_fresh_record_wins(self):
