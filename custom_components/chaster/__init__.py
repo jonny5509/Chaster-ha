@@ -133,7 +133,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                     if not isinstance(target, str):
                         continue
                     service = target.split(".", 1)[1] if target.startswith("notify.") else target
-                    if re.fullmatch(r"[a-z0-9_]+", service) and service not in services:
+                    if re.fullmatch(r"mobile_app_[a-z0-9_]+", service) and service not in services:
                         services.append(service)
             if not services:
                 legacy = str(options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE))
@@ -142,7 +142,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                 services = [legacy.split(".", 1)[1]]
             for service in services:
                 await hass.services.async_call("notify", service, {"title": title, "message": message}, blocking=True)
-        if destination in {"ha", "both"}:
+        if destination in {"home_assistant", "both"}:
             await hass.services.async_call("persistent_notification", "create", {"title": title, "message": message, "notification_id": f"chaster_test_{entry.entry_id}"}, blocking=True)
 
     async def api_request(call: ServiceCall) -> None:
