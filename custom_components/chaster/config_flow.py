@@ -122,6 +122,34 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         defaults = self.config_entry.options
+        # Match EmlaLock: phone targets must be Companion App mobile_app services.
+        notify_services = sorted(
+            name
+            for name in self.hass.services.async_services().get("notify", {})
+            if name.startswith("mobile_app_")
+        )
+        service_options = [
+            {
+                "value": f"notify.{name}",
+                "label": name.removeprefix("mobile_app_").replace("_", " "),
+            }
+            for name in notify_services
+        ]
+        # Preserve saved targets if service discovery is temporarily incomplete.
+        for target in defaults.get(CONF_NOTIFICATION_TARGETS, []):
+            service_name = str(target).removeprefix("notify.")
+            if service_name.startswith("mobile_app_") and all(
+                item["value"] != f"notify.{service_name}" for item in service_options
+            ):
+                service_options.append({
+                    "value": f"notify.{service_name}",
+                    "label": service_name.removeprefix("mobile_app_").replace("_", " "),
+                })
+        destination = defaults.get(CONF_NOTIFICATION_DESTINATION)
+        if destination not in {"none", "home_assistant", "phone", "both"}:
+            phone = defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
+            ha = defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
+            destination = "both" if phone and ha else "phone" if phone else "home_assistant" if ha else "none"
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
@@ -138,14 +166,14 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                             CONF_NOTIFICATION_DESTINATION,
                             "both" if defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False) and defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
                             else "phone" if defaults.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
-                            else "ha" if defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
+                            else "home_assistant" if defaults.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
                             else "none",
                         ),
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=[
                                 {"label": "None", "value": "none"},
-                                {"label": "Home Assistant notifications", "value": "ha"},
+                                {"label": "Home Assistant notifications", "value": "home_assistant"},
                                 {"label": "Phone notifications", "value": "phone"},
                                 {"label": "Home Assistant and phone", "value": "both"},
                             ],
@@ -155,8 +183,12 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_NOTIFICATION_TARGETS,
                         default=defaults.get(CONF_NOTIFICATION_TARGETS, []),
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="notify", multiple=True)
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=service_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
                     ),
                     vol.Optional(CONF_NOTIFY_WEARER, default=defaults.get(CONF_NOTIFY_WEARER, False)): bool,
                     vol.Optional(CONF_NOTIFY_KEYHOLDER, default=defaults.get(CONF_NOTIFY_KEYHOLDER, False)): bool,

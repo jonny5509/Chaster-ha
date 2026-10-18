@@ -126,10 +126,12 @@ class ChasterLockNotifications:
         configured_service = str(self.options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE))
         self.legacy_service = configured_service.split(".", 1)[1] if re.fullmatch(r"notify\.[a-z0-9_]+", configured_service) else DEFAULT_NOTIFICATION_SERVICE.split(".", 1)[1]
         self.destination = self.options.get(CONF_NOTIFICATION_DESTINATION)
-        if self.destination not in {"none", "ha", "phone", "both"}:
+        if self.destination == "ha":
+            self.destination = "home_assistant"
+        if self.destination not in {"none", "home_assistant", "phone", "both"}:
             old_phone = self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
             old_ha = self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
-            self.destination = "both" if old_phone and old_ha else "phone" if old_phone else "ha" if old_ha else "none"
+            self.destination = "both" if old_phone and old_ha else "phone" if old_phone else "home_assistant" if old_ha else "none"
         self.store = Store(hass, 1, f"{DOMAIN}_notifications_{entry.entry_id}")
         self.state: dict[str, dict[str, Any]] = {}
 
@@ -165,17 +167,17 @@ class ChasterLockNotifications:
                     if not isinstance(target, str):
                         continue
                     service = target.split(".", 1)[1] if target.startswith("notify.") else target
-                    if re.fullmatch(r"[a-z0-9_]+", service) and service not in services:
+                    if re.fullmatch(r"mobile_app_[a-z0-9_]+", service) and service not in services:
                         services.append(service)
-            if not services:
-                services = [self.legacy_service]
+            if not services and re.fullmatch(r"notify\.mobile_app_[a-z0-9_]+", str(self.options.get(CONF_NOTIFICATION_SERVICE, ""))):
+                services = [str(self.options[CONF_NOTIFICATION_SERVICE]).split(".", 1)[1]]
             for service in services:
                 try:
                     await self.hass.services.async_call("notify", service, {"title": title, "message": message}, blocking=True)
                     delivered = True
                 except Exception:
                     _LOGGER.exception("Unable to send Chaster phone notification using notify.%s", service)
-        if self.destination in {"ha", "both"}:
+        if self.destination in {"home_assistant", "both"}:
             try:
                 await self.hass.services.async_call(
                     "persistent_notification", "create",
@@ -266,7 +268,9 @@ async def async_setup_notifications(
     """Set up notification tracking when enabled in the integration options."""
     options = entry.options
     destination = options.get(CONF_NOTIFICATION_DESTINATION)
-    if destination not in {"none", "ha", "phone", "both"}:
+    if destination == "ha":
+        destination = "home_assistant"
+    if destination not in {"none", "home_assistant", "phone", "both"}:
         old_phone = options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
         old_ha = options.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
         destination = "both" if old_phone and old_ha else "phone" if old_phone else "ha" if old_ha else "none"
