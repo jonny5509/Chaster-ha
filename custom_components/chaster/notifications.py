@@ -20,6 +20,8 @@ from .const import (
     CONF_NOTIFICATION_TARGETS,
     CONF_NOTIFY_KEYHOLDER,
     CONF_NOTIFY_WEARER,
+    CONF_NOTIFY_DAILY,
+    CONF_NOTIFY_COMPLETION,
     DEFAULT_NOTIFICATION_SERVICE,
     DOMAIN,
 )
@@ -231,6 +233,7 @@ class ChasterLockNotifications:
                         changed = True
                     if (
                         _destination(self.entry.options) != "none"
+                        and self.options.get(CONF_NOTIFY_DAILY, True)
                         and elapsed_days >= 1
                         and elapsed_days > int(record.get("last_daily_day", 0))
                     ):
@@ -240,7 +243,7 @@ class ChasterLockNotifications:
                             record["last_daily_day"] = elapsed_days
                             changed = True
                 elif record.get("active_seen") and not record.get("completion_notified"):
-                    if _destination(self.entry.options) != "none":
+                    if _destination(self.entry.options) != "none" and self.options.get(CONF_NOTIFY_COMPLETION, True):
                         title = "Session completed"
                         message = f"🏆 {name} is complete after {_duration(elapsed_days)}. Well done!"
                         if await self._notify(title, message, "completion", lock_key):
