@@ -123,6 +123,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             raise HomeAssistantError("Choose a notification destination in Chaster integration options first")
         options = entry.options
         destination = options.get(CONF_NOTIFICATION_DESTINATION, "none")
+        if destination == "ha":
+            destination = "home_assistant"
         title = "Chaster test notification"
         message = "This is a test notification. Your Chaster notification delivery is configured."
         if destination in {"phone", "both"}:
@@ -137,7 +139,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
                         services.append(service)
             if not services:
                 legacy = str(options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE))
-                if not re.fullmatch(r"notify\.[a-z0-9_]+", legacy):
+                if not re.fullmatch(r"notify\.mobile_app_[a-z0-9_]+", legacy):
                     raise HomeAssistantError("Select a valid phone notification target in Chaster options")
                 services = [legacy.split(".", 1)[1]]
             for service in services:
