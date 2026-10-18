@@ -45,6 +45,8 @@ for name, value in {
     "CONF_ENABLE_PHONE_NOTIFICATIONS": "enable_phone_notifications",
     "CONF_ENABLE_HA_NOTIFICATIONS": "enable_ha_notifications",
     "CONF_NOTIFICATION_SERVICE": "notification_service",
+    "CONF_NOTIFICATION_DESTINATION": "notification_destination",
+    "CONF_NOTIFICATION_TARGETS": "notification_targets",
     "CONF_NOTIFY_COMPLETION": "notify_lock_completion",
     "CONF_NOTIFY_DAILY": "notify_daily_congratulations",
     "CONF_NOTIFY_HA_DAILY": "notify_ha_daily",
