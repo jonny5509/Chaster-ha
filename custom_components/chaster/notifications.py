@@ -239,7 +239,7 @@ class ChasterLockNotifications:
                     ):
                         title = "Session milestone reached"
                         message = f"🎉 Day {elapsed_days} complete for {name}. Keep it going!"
-                        if await self._notify(title, message, f"daily_{elapsed_days}", lock_key):
+                        if await self._notify(title, message, "daily", lock_key):
                             record["last_daily_day"] = elapsed_days
                             changed = True
                 elif record.get("active_seen") and not record.get("completion_notified"):
