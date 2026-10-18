@@ -198,13 +198,14 @@ class CalendarTimerDateTests(unittest.TestCase):
         first_event = calendar._events()[0]
         lock["timer"]["endDate"] = "2030-01-04T00:00:00Z"
         lock["title"] = "Updated title"
-        second_event = calendar._events()[0]
+        second_events = calendar._events()
 
-        self.assertEqual(first_event.end, datetime(2030, 1, 2, tzinfo=timezone.utc))
-        self.assertEqual(second_event.end, datetime(2030, 1, 4, tzinfo=timezone.utc))
-        self.assertEqual(first_event.uid, second_event.uid)
+        self.assertEqual(first_event.end.isoformat(), "2030-01-02")
+        self.assertEqual(len(second_events), 3)
+        self.assertEqual(second_events[-1].end.isoformat(), "2030-01-04")
+        self.assertEqual(first_event.uid, second_events[0].uid)
         self.assertEqual(
-            second_event.summary,
+            second_events[0].summary,
             "Chaster — Active session — started 00:00",
         )
 
@@ -313,8 +314,8 @@ class CalendarTimerDateTests(unittest.TestCase):
             "endDate": "2020-01-01T12:30:00Z",
             "status": "locked",
         }
-        event = _calendar({"locks": [lock]})._events()[0]
-        self.assertGreater(event.end, datetime.now(timezone.utc))
+        events = _calendar({"locks": [lock]})._events()
+        self.assertGreater(max(event.end for event in events), datetime.now(timezone.utc).date())
 
     def test_overdue_ended_lock_is_not_artificially_extended(self):
         lock = {
@@ -340,7 +341,10 @@ class CalendarTimerDateTests(unittest.TestCase):
             "last_update_success_time": refreshed_at,
         })
         event = calendar._events()[0]
-        self.assertEqual(event.end, datetime(2030, 1, 1, 13, 0, tzinfo=timezone.utc))
+        # Active sessions are exposed as all-day calendar events. The live
+        # timer still determines the event's daily segmentation, not its
+        # intraday end timestamp.
+        self.assertEqual(event.end.isoformat(), "2030-01-02")
 
     def test_calendar_range_uses_strict_overlap_boundaries(self):
         locks = [
