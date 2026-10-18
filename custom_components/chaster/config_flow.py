@@ -190,6 +190,8 @@ class ChasterOptionsFlow(config_entries.OptionsFlow):
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
+                    vol.Optional(CONF_NOTIFY_DAILY, default=defaults.get(CONF_NOTIFY_DAILY, True)): bool,
+                    vol.Optional(CONF_NOTIFY_COMPLETION, default=defaults.get(CONF_NOTIFY_COMPLETION, True)): bool,
                     vol.Optional(CONF_NOTIFY_WEARER, default=defaults.get(CONF_NOTIFY_WEARER, False)): bool,
                     vol.Optional(CONF_NOTIFY_KEYHOLDER, default=defaults.get(CONF_NOTIFY_KEYHOLDER, False)): bool,
                 }

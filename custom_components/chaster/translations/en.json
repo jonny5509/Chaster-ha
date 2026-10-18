@@ -38,6 +38,8 @@
           "enable_shared_locks": "Enable shared locks",
           "enable_messaging": "Enable messaging",
           "enable_lock_actions": "Enable lock actions",
+          "notify_daily_congratulations": "Daily milestone notifications",
+          "notify_lock_completion": "Session completion notifications",
           "notification_destination": "Notification destination",
           "notification_targets": "Phones to notify",
           "notify_wearer_locks": "Notify for wearer (My lock) sessions",
