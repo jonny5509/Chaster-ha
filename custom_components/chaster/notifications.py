@@ -126,6 +126,8 @@ class ChasterLockNotifications:
         configured_service = str(self.options.get(CONF_NOTIFICATION_SERVICE, DEFAULT_NOTIFICATION_SERVICE))
         self.legacy_service = configured_service.split(".", 1)[1] if re.fullmatch(r"notify\.[a-z0-9_]+", configured_service) else DEFAULT_NOTIFICATION_SERVICE.split(".", 1)[1]
         self.destination = self.options.get(CONF_NOTIFICATION_DESTINATION)
+        if self.destination == "ha":
+            self.destination = "home_assistant"
         if self.destination not in {"none", "home_assistant", "phone", "both"}:
             old_phone = self.options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
             old_ha = self.options.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
@@ -266,6 +268,8 @@ async def async_setup_notifications(
     """Set up notification tracking when enabled in the integration options."""
     options = entry.options
     destination = options.get(CONF_NOTIFICATION_DESTINATION)
+    if destination == "ha":
+        destination = "home_assistant"
     if destination not in {"none", "home_assistant", "phone", "both"}:
         old_phone = options.get(CONF_ENABLE_PHONE_NOTIFICATIONS, False)
         old_ha = options.get(CONF_ENABLE_HA_NOTIFICATIONS, False)
