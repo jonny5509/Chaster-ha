@@ -1,10 +1,7 @@
 # Chaster for Home Assistant
 
-[![Downloads](https://img.shields.io/github/downloads/jonny5509/Chaster-ha/total?label=downloads)](https://github.com/jonny5509/Chaster-ha/releases)
+[![Downloads](https://img.shields.io/github/downloads/jonny5509/Chaster-ha/total?label=downloads)](https://github.com/jonny5509/Chaster-ha/releases) [![Version](https://img.shields.io/github/v/release/jonny5509/Chaster-ha?display_name=tag&sort=semver)](https://github.com/jonny5509/Chaster-ha/releases/latest) [![HACS Compatible](https://img.shields.io/badge/HACS-Compatible-41BDF5.svg)](https://hacs.xyz/)
 
-[![Version](https://img.shields.io/github/v/release/jonny5509/Chaster-ha?display_name=tag&sort=semver)](https://github.com/jonny5509/Chaster-ha/releases/latest)
-[![HACS](https://img.shields.io/badge/HACS-Compatible-41BDF5.svg)](https://hacs.xyz/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A Home Assistant custom integration for the **Chaster Public API**.
 
