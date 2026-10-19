@@ -56,10 +56,25 @@ jobs:
 
           tag = os.environ["RELEASE_TAG"].removeprefix("v")
           required_files = {
+              # Home Assistant integration metadata and setup.
+              "__init__.py",
               "manifest.json",
               "config_flow.py",
+              "const.py",
+              "api.py",
+              "coordinator.py",
+              "entity.py",
+              # Platforms and service descriptions.
+              "sensor.py",
+              "sensors.py",
+              "binary_sensor.py",
+              "button.py",
+              "calendar.py",
+              "services.yaml",
+              # UI, translations, and branding must ship with the integration.
               "strings.json",
               "translations/en.json",
+              "www/chaster-card.js",
               "brand/icon.png",
           }
 
@@ -68,8 +83,7 @@ jobs:
               if bad_file:
                   raise SystemExit(f"Corrupt file in release ZIP: {bad_file}")
 
-              # zip may store paths with a leading "./"; normalize those while
-              # preserving the original member names for reading files.
+              # Normalize optional leading "./" while preserving original names.
               members = {
                   name.removeprefix("./"): name
                   for name in archive.namelist()
