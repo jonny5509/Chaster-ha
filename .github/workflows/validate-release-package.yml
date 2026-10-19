@@ -1,0 +1,95 @@
+name: Validate HACS release package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "custom_components/chaster/**"
+      - ".github/workflows/validate-release-package.yml"
+  pull_request:
+    paths:
+      - "custom_components/chaster/**"
+      - ".github/workflows/validate-release-package.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build HACS ZIP
+        run: |
+          rm -f chaster.zip
+          cd custom_components/chaster
+          zip -qr ../../chaster.zip .
+
+      - name: Validate package layout and required files
+        run: |
+          python3 - <<'PY'
+          import json
+          import zipfile
+
+          required_files = {
+              "__init__.py",
+              "manifest.json",
+              "config_flow.py",
+              "const.py",
+              "api.py",
+              "coordinator.py",
+              "entity.py",
+              "sensor.py",
+              "sensors.py",
+              "binary_sensor.py",
+              "button.py",
+              "calendar.py",
+              "services.yaml",
+              "strings.json",
+              "translations/en.json",
+              "www/chaster-card.js",
+              "brand/icon.png",
+          }
+
+          with zipfile.ZipFile("chaster.zip") as archive:
+              bad_file = archive.testzip()
+              if bad_file:
+                  raise SystemExit(f"Corrupt file in release ZIP: {bad_file}")
+
+              members = {
+                  name.removeprefix("./"): name
+                  for name in archive.namelist()
+                  if not name.endswith("/")
+              }
+              missing = sorted(required_files - members.keys())
+              if missing:
+                  raise SystemExit(
+                      "Release ZIP is missing required files: "
+                      + ", ".join(missing)
+                  )
+
+              if any(name.startswith("chaster/") for name in members):
+                  raise SystemExit(
+                      "Release ZIP must contain integration files at its root, "
+                      "not inside a chaster/ directory."
+                  )
+
+              manifest = json.loads(archive.read(members["manifest.json"]))
+              if manifest.get("domain") != "chaster":
+                  raise SystemExit("Release ZIP manifest has the wrong domain.")
+              version = manifest.get("version")
+              if not isinstance(version, str) or not version.strip():
+                  raise SystemExit("Release ZIP manifest has no valid version.")
+
+          print(f"Validated chaster.zip for manifest version {version}")
+          PY
+
+      - name: Upload ZIP as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaster-hacs-package
+          path: chaster.zip
+          if-no-files-found: error
+          retention-days: 7
