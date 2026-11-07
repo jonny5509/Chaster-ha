@@ -26,7 +26,7 @@ class ChasterCard extends HTMLElement {
   }
 
   getCardSize() {
-    return this._config.show_actions === false ? 5 : 8;
+    return 8;
   }
 
   static getStubConfig() {
@@ -144,8 +144,8 @@ class ChasterCard extends HTMLElement {
       entity: this._findButton(key),
     }));
 
-    const visibleValues = values.filter(([, entity]) => entity);
-    const visibleActions = actions.filter((action) => action.entity);
+    const visibleValues = values;
+    const visibleActions = actions;
     const showActions = this._config.show_actions !== false;
     const title = this._escape(this._config.title || "Chaster");
 
