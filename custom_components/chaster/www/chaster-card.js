@@ -132,13 +132,6 @@ class ChasterCard extends HTMLElement {
       ["◷", "Maximum duration", this._find("maximum_duration", role === "keyholder" ? "keyholder_maximum_duration" : "my_lock_maximum_duration", "maximum_duration")],
     ];
 
-    const binary = [
-      ["Locked", this._find("locked", role + "_locked")],
-      ["Ready to unlock", this._find("ready_to_unlock", role + "_ready_to_unlock")],
-      ["Frozen", this._find("frozen", role + "_frozen")],
-      ["Task assigned", this._find("task_assigned", role + "_task_assigned")],
-    ];
-
     const actionDefs = [
       ["+1 hour", "add_1_hour"],
       ["−1 hour", "subtract_1_hour"],
@@ -152,7 +145,6 @@ class ChasterCard extends HTMLElement {
     }));
 
     const visibleValues = values.filter(([, entity]) => entity);
-    const visibleBinary = binary.filter(([, entity]) => entity);
     const visibleActions = actions.filter((action) => action.entity);
     const showActions = this._config.show_actions !== false;
     const title = this._escape(this._config.title || "Chaster");
@@ -181,9 +173,6 @@ class ChasterCard extends HTMLElement {
         .row-content { min-width: 0; flex: 1; padding-left: 8px; }
         .label { color: var(--secondary-text-color); font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
         .value { margin-top: 4px; color: var(--primary-text-color); font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
-        .statuses { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
-        .status { padding: 6px 10px; border: 1px solid var(--divider-color); border-radius: 999px; color: var(--secondary-text-color); font-size: 12px; font-weight: 600; }
-        .status.on { color: var(--success-color, var(--primary-color)); border-color: var(--success-color, var(--primary-color)); }
         .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
         .action {
           min-width: 0; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 12px;
@@ -204,9 +193,6 @@ class ChasterCard extends HTMLElement {
               this._row(icon, label, this._value(entity))
             ).join("") : '<div class="empty">No Chaster entities found. Check that the integration is loaded, or set entity IDs in the card configuration.</div>'}
           </div>
-          ${visibleBinary.length ? `<div class="statuses">${visibleBinary.map(([label, entity]) =>
-            `<span class="status ${entity.state === "on" ? "on" : ""}">${this._escape(label)}: ${entity.state === "on" ? "Yes" : entity.state === "off" ? "No" : this._escape(this._value(entity))}</span>`
-          ).join("")}</div>` : ""}
           ${showActions ? `
             <div class="actions">
               ${visibleActions.map((action, index) => `
