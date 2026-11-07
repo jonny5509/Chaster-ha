@@ -129,7 +129,7 @@ class ChasterCard extends HTMLElement {
     const values = [
       ["⏱", "Time locked / elapsed", this._find("time_locked", role === "keyholder" ? "keyholder_time_locked" : "my_lock_time_locked", "time_locked")],
       ["⌛", "Time remaining", this._find("time_remaining", role === "keyholder" ? "keyholder_time_remaining" : "my_lock_time_remaining", "time_remaining")],
-      ["◷", "Maximum duration", this._find("maximum_duration", role + "_maximum_duration", "maximum_duration")],
+      ["◷", "Maximum duration", this._find("maximum_duration", role === "keyholder" ? "keyholder_maximum_duration" : "my_lock_maximum_duration", "maximum_duration")],
     ];
 
     const binary = [
