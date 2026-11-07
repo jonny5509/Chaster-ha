@@ -64,14 +64,21 @@ class ChasterCard extends HTMLElement {
     const role = this._config.role === "keyholder" ? "keyholder" : "wearer";
     const roleSuffix = "_" + role + "_" + action;
     const wantedName = action.replaceAll("_", " ");
-    return this._states().find((entity) => {
+    const matches = this._states().filter((entity) => {
       const id = String(entity.entity_id || "").toLowerCase();
-      if (!id.startsWith("button.") || (!id.includes("chaster"))) return false;
+      if (!id.startsWith("button.") || !id.includes("chaster")) return false;
       const name = String(entity.attributes?.friendly_name || "").toLowerCase();
-      return id.endsWith(roleSuffix) ||
-        (id.endsWith("_" + action) && name.includes(wantedName) && name.includes(role)) ||
-        (name.includes(wantedName) && name.includes(role));
-    }) || null;
+      return id.endsWith("_" + action) || name.includes(wantedName);
+    });
+    const roleMatch = matches.find((entity) => {
+      const id = String(entity.entity_id || "").toLowerCase();
+      const name = String(entity.attributes?.friendly_name || "").toLowerCase();
+      if (id.endsWith(roleSuffix)) return true;
+      return role === "keyholder"
+        ? name.includes("keyholder")
+        : name.includes("my lock") || name.includes("my_lock") || name.includes("wearer");
+    });
+    return roleMatch || (matches.length === 1 ? matches[0] : null);
   }
 
   _value(entity) {
@@ -122,7 +129,7 @@ class ChasterCard extends HTMLElement {
       ["⭐", "Task points", this._find("task_points", role === "keyholder" ? "keyholder_task_points" : "my_lock_task_points", "task_points")],
       ["🎯", "Points required", this._find("task_points_required", role === "keyholder" ? "keyholder_task_points_required" : "my_lock_task_points_required", "task_points_required")],
       ["↘", "Points remaining", this._find("task_points_remaining", role === "keyholder" ? "keyholder_task_points_remaining" : "my_lock_task_points_remaining", "task_points_remaining")],
-      ["👤", role === "keyholder" ? "Wearer" : "Keyholder", this._find(role === "keyholder" ? "wearer_username" : "keyholder_username", role === "keyholder" ? "keyholder_device_wearer_username" : "my_lock_keyholder_username", role === "keyholder" ? "wearer_username" : "keyholder_username")],
+      ["👤", role === "keyholder" ? "Wearer" : "Keyholder", this._find(role === "keyholder" ? "wearer_username" : "keyholder_username", role === "keyholder" ? "keyholder_wearer_username" : "my_lock_keyholder_username", role === "keyholder" ? "wearer_username" : "keyholder_username")],
       ["🔒", "Lock type", this._find("lock_type", role === "keyholder" ? "keyholder_lock_type" : "wearer_lock_type", "lock_type")],
     ];
 
