@@ -77,6 +77,7 @@ Treat your API token like a password.
 - Lock Type
 - Start Date / End Date
 - Time Locked / Time Remaining
+- Maximum Duration
 - Session Role
 - Task Points
 - Task Points Required
