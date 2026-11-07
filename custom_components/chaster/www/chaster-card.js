@@ -78,7 +78,11 @@ class ChasterCard extends HTMLElement {
         ? name.includes("keyholder")
         : name.includes("my lock") || name.includes("my_lock") || name.includes("wearer");
     });
-    return roleMatch || (matches.length === 1 ? matches[0] : null);
+    if (roleMatch) return roleMatch;
+    if (matches.length === 1) return matches[0];
+    // The integration creates wearer entities before keyholder entities;
+    // retain that stable ordering if HA does not expose a role in the name.
+    return matches.length > 1 ? matches[role === "keyholder" ? 1 : 0] : null;
   }
 
   _value(entity) {
@@ -161,6 +165,7 @@ class ChasterCard extends HTMLElement {
 
     const visibleValues = values.filter(([, entity]) => entity);
     const visibleBinary = binary.filter(([, entity]) => entity);
+    const visibleActions = actions.filter((action) => action.entity);
     const showActions = this._config.show_actions !== false;
     const title = this._escape(this._config.title || "Chaster");
 
@@ -216,7 +221,7 @@ class ChasterCard extends HTMLElement {
           ).join("")}</div>` : ""}
           ${showActions ? `
             <div class="actions">
-              ${actions.map((action, index) => `
+              ${visibleActions.map((action, index) => `
                 <button class="action" data-action="${index}" ${!action.entity || ["unavailable", "unknown"].includes(action.entity.state) || this._busy.has(index) ? "disabled" : ""}>
                   ${this._busy.has(index) ? "Working…" : this._escape(action.label)}
                 </button>
