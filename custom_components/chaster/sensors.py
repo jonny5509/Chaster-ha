@@ -325,7 +325,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         "Wearer Username", "Keyholder Username", "Lock Title", "Lock Type",
         "Start Date", "End Date", "Timer Visible", "Time Locked",
         "Time Remaining", "Session Role", "Task Points",
-        "Task Points Required", "Task Points Remaining",
+        "Task Points Required", "Task Points Remaining", "Maximum Duration",
     }
     for entity in list(registry.entities.values()):
         if entity.config_entry_id == entry.entry_id and entity.domain == "sensor":
@@ -386,6 +386,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ChasterTimerVisibleSensor(coordinator, "wearer"),
         ChasterTimeLockedSensor(coordinator, "wearer"),
         ChasterTimeRemainingSensor(coordinator, "wearer"),
+        ChasterMaximumDurationSensor(coordinator, "wearer"),
         ChasterSessionRoleSensor(coordinator, "wearer"),
         ChasterTaskPointsSensor(coordinator, "wearer"),
         ChasterTaskPointsRequiredSensor(coordinator, "wearer"),
@@ -399,6 +400,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ChasterTimerVisibleSensor(coordinator, "keyholder"),
         ChasterTimeLockedSensor(coordinator, "keyholder"),
         ChasterTimeRemainingSensor(coordinator, "keyholder"),
+        ChasterMaximumDurationSensor(coordinator, "keyholder"),
         ChasterSessionRoleSensor(coordinator, "keyholder"),
         ChasterTaskPointsSensor(coordinator, "keyholder"),
         ChasterTaskPointsRequiredSensor(coordinator, "keyholder"),
@@ -526,6 +528,39 @@ class ChasterTimeRemainingSensor(_ChasterCountdownSensor):
     def native_value(self):
         lock = _active_lock(self.coordinator, self.role)
         return _format_duration(_remaining(lock)) if lock else None
+
+
+class ChasterMaximumDurationSensor(_ChasterCountdownSensor):
+    """Expose the configured maximum lock duration from start to max-limit date."""
+
+    _attr_icon = "mdi:timer-cog-outline"
+    _attr_entity_registry_enabled_default = True
+
+    def __init__(self, coordinator, role):
+        super().__init__(coordinator, role)
+        suffix = "my_lock_maximum_duration" if role == "wearer" else "keyholder_maximum_duration"
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{suffix}"
+        self._attr_name = "Maximum Duration"
+
+    @property
+    def native_value(self):
+        lock = _active_lock(self.coordinator, self.role)
+        if not lock:
+            return None
+        start = lock.get("startDate")
+        maximum = lock.get("maxLimitDate")
+        if not isinstance(start, str) or not isinstance(maximum, str):
+            return None
+        try:
+            start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+            max_dt = datetime.fromisoformat(maximum.replace("Z", "+00:00"))
+            if start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            if max_dt.tzinfo is None:
+                max_dt = max_dt.replace(tzinfo=timezone.utc)
+            return _format_duration(max(0, int((max_dt - start_dt).total_seconds())))
+        except (TypeError, ValueError, OverflowError):
+            return None
 
 
 class ChasterSessionRoleSensor(ChasterEntity, SensorEntity):
