@@ -137,6 +137,26 @@ type: custom:chaster-card
 
 The card can display countdown information, task points, common lock controls, and time-adjustment controls.
 
+
+### Dashboard card options
+
+The card automatically discovers Chaster entities. You can choose which role's lock and controls to show, hide the action buttons, or provide explicit entity IDs if you have renamed entities:
+
+```yaml
+type: custom:chaster-card
+title: Chaster
+role: wearer # or keyholder
+show_actions: true
+entities:
+  time_locked: sensor.chaster_my_lock_time_locked
+  time_remaining: sensor.chaster_my_lock_time_remaining
+  task_points: sensor.chaster_my_lock_task_points
+  refresh: button.chaster_my_lock_refresh
+  add_1_day: button.chaster_my_lock_add_1_day
+```
+
+All `entities` entries are optional. Omit an entry to use automatic discovery. Entity IDs shown are examples; use the IDs from **Settings → Devices & services → Entities** in your Home Assistant installation. Set `show_actions: false` for a read-only status card.
+
 ## 🌐 Chaster API
 
 This integration uses the Chaster Public API for supported authentication, lock, task, conversation, history, and lock-action functionality.
