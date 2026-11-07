@@ -127,14 +127,9 @@ class ChasterCard extends HTMLElement {
 
     const role = this._config.role === "keyholder" ? "keyholder" : "wearer";
     const values = [
-      ["◉", "Lock title", this._find("lock_title", role === "keyholder" ? "keyholder_lock_title" : "wearer_lock_title", role === "keyholder" ? "keyholder_lock_title" : "my_lock_lock_title")],
-      ["⏱", "Time locked", this._find("time_locked", role === "keyholder" ? "keyholder_time_locked" : "my_lock_time_locked", "time_locked")],
+      ["⏱", "Time locked / elapsed", this._find("time_locked", role === "keyholder" ? "keyholder_time_locked" : "my_lock_time_locked", "time_locked")],
       ["⌛", "Time remaining", this._find("time_remaining", role === "keyholder" ? "keyholder_time_remaining" : "my_lock_time_remaining", "time_remaining")],
-      ["⭐", "Task points", this._find("task_points", role === "keyholder" ? "keyholder_task_points" : "my_lock_task_points", "task_points")],
-      ["🎯", "Points required", this._find("task_points_required", role === "keyholder" ? "keyholder_task_points_required" : "my_lock_task_points_required", "task_points_required")],
-      ["↘", "Points remaining", this._find("task_points_remaining", role === "keyholder" ? "keyholder_task_points_remaining" : "my_lock_task_points_remaining", "task_points_remaining")],
-      ["👤", role === "keyholder" ? "Wearer" : "Keyholder", this._find(role === "keyholder" ? "wearer_username" : "keyholder_username", role === "keyholder" ? "keyholder_wearer_username" : "my_lock_keyholder_username", role === "keyholder" ? "wearer_username" : "keyholder_username")],
-      ["🔒", "Lock type", this._find("lock_type", role === "keyholder" ? "keyholder_lock_type" : "wearer_lock_type", "lock_type")],
+      ["◷", "Maximum duration", this._find("maximum_duration", role + "_maximum_duration", "maximum_duration")],
     ];
 
     const binary = [
@@ -145,17 +140,10 @@ class ChasterCard extends HTMLElement {
     ];
 
     const actionDefs = [
-      ["Refresh", "refresh"],
-      ["Refresh history", "history"],
-      ["+1 day", "add_1_day"],
       ["+1 hour", "add_1_hour"],
-      ["−1 day", "subtract_1_day"],
       ["−1 hour", "subtract_1_hour"],
-      ["Freeze", "freeze"],
-      ["Unfreeze", "unfreeze"],
-      ["Unlock", "unlock"],
-      ["Emergency unlock", "emergency_unlock"],
-      ["Archive", "archive"],
+      ["+1 day", "add_1_day"],
+      ["−1 day", "subtract_1_day"],
     ];
     const actions = actionDefs.map(([label, key]) => ({
       label,
