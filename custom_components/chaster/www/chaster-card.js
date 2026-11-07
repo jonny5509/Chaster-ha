@@ -200,7 +200,7 @@ class ChasterCard extends HTMLElement {
         <div class="card">
           <h2 class="heading">${title}</h2>
           <div class="rows">
-            ${visibleValues.length ? visibleValues.map(([label, entity, icon]) =>
+            ${visibleValues.length ? visibleValues.map(([icon, label, entity]) =>
               this._row(icon, label, this._value(entity))
             ).join("") : '<div class="empty">No Chaster entities found. Check that the integration is loaded, or set entity IDs in the card configuration.</div>'}
           </div>
