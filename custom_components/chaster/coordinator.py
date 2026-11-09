@@ -176,6 +176,13 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for lock_id, item in merged_locks.items():
                     if lock_id not in fresh_wearer_ids and self.is_active(item):
                         item["status"] = "ended"
+                        # Record the observed end so the calendar can show
+                        # how long the session actually lasted instead of
+                        # the still-future scheduled end.
+                        item.setdefault(
+                            "calendarEndedAt",
+                            datetime.now(timezone.utc).isoformat(),
+                        )
             merged_locks.update({
                 self.lock_id(item): item
                 for item in locks
@@ -283,6 +290,10 @@ class ChasterCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     continue
                 if keyholder_available and item_id not in fresh_keyholder_ids and self.is_active(lock_item):
                     ended_lock = {**lock_item, "status": "ended"}
+                    ended_lock.setdefault(
+                        "calendarEndedAt",
+                        datetime.now(timezone.utc).isoformat(),
+                    )
                     item = {**item, "lock": ended_lock} if isinstance(item.get("lock"), dict) else ended_lock
                 merged_keyholder[item_id] = item
             for item in keyholder_items:

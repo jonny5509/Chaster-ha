@@ -92,6 +92,36 @@ def _lock_for_item(item: dict[str, Any]) -> dict[str, Any]:
     return {**item, **nested} if isinstance(nested, dict) else item
 
 
+def _format_duration(start: datetime, end: datetime) -> str | None:
+    """Format the elapsed time of a completed session for its description."""
+    total = int((end - start).total_seconds())
+    if total <= 0 or end <= start:
+        return None
+    minutes = total // 60
+    if minutes <= 0:
+        return f"{total}s"
+    days, remainder = divmod(minutes, 24 * 60)
+    hours, mins = divmod(remainder, 60)
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if days or hours or mins:
+        parts.append(f"{mins}m")
+    return " ".join(parts)
+
+
+def _with_duration(description: str, start: datetime, end: datetime) -> str:
+    """Append the session duration to a completed event's description."""
+    duration = _format_duration(start, end)
+    if duration is None:
+        return description
+    if description:
+        return f"{description}\nDuration: {duration}"
+    return f"Duration: {duration}"
+
+
 def _role_locks(coordinator: ChasterCoordinator, role: str) -> list[dict[str, Any]]:
     """Return locks for one role without mixing wearer and keyholder sessions."""
     data = coordinator.data if isinstance(coordinator.data, dict) else {}
@@ -151,13 +181,17 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
             remaining = _first_number(
                 lock, ("timeRemainingSeconds", "remainingSeconds", "remainingTimeSeconds")
             )
+            active_lock = self.coordinator.is_active(lock)
             updated_at = getattr(self.coordinator, "last_update_success_time", None)
             if isinstance(updated_at, datetime):
                 if updated_at.tzinfo is None:
                     updated_at = updated_at.replace(tzinfo=timezone.utc)
                 else:
                     updated_at = updated_at.astimezone(timezone.utc)
-                if remaining is not None:
+                # A live remaining timer only describes an ongoing session.
+                # Ignore it for ended locks so a stale value cannot inflate
+                # the recorded duration of a completed entry.
+                if active_lock and remaining is not None:
                     try:
                         end = updated_at + timedelta(seconds=remaining)
                     except (OverflowError, ValueError):
@@ -170,22 +204,51 @@ class ChasterSessionCalendar(ChasterEntity, CalendarEntity):
             # session visible even when this HA version/coordinator has no
             # last_update_success_time (or the live timer is unavailable).
             now = datetime.now(timezone.utc)
-            if end is not None and end <= now and self.coordinator.is_active(lock):
+            if end is not None and end <= now and active_lock:
                 interval = getattr(self.coordinator, "update_interval", None)
                 extension = interval.total_seconds() if isinstance(interval, timedelta) else 60
                 end = now + timedelta(seconds=max(60, extension))
+
+            if not active_lock:
+                # Ended locks are timed entries spanning their actual
+                # duration. Prefer the coordinator's observed end recorded
+                # when the lock left the active listing; otherwise supersede
+                # a still-future scheduled end with the observation time so
+                # an early-unlocked session does not keep showing a full-day
+                # or over-length block. Upcoming locks keep their real end.
+                observed_end = _first_datetime(
+                    lock,
+                    (
+                        "calendarEndedAt",
+                        "calendar_ended_at",
+                        "endedAt",
+                        "ended_at",
+                        "ended",
+                    ),
+                )
+                if observed_end is not None and start is not None and observed_end > start:
+                    end = observed_end
+                elif (
+                    end is not None
+                    and start is not None
+                    and start <= now
+                    and end > now
+                ):
+                    end = now
 
             # Keep the explicit absolute end as fallback when live timing is
             # unavailable or hidden; never fabricate an end date.
             if start is None or end is None or end <= start:
                 continue
 
-            is_active = self.coordinator.is_active(lock)
+            is_active = active_lock
             status = lock.get("status") or lock.get("state") or "unknown"
             role_label = "My lock" if self.role == "wearer" else "Keyholder lock"
             description = (
                 f"{role_label} session\nStatus: {status}\nLock ID: {lock_id}"
             )
+            if not is_active:
+                description = _with_duration(description, start, end)
 
             if is_active:
                 # Split active sessions at local midnight so each calendar day
